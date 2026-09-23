@@ -40,6 +40,7 @@ Six models, three providers, reasoning disabled everywhere.
 | GPT-5.6 Terra | `gpt-5.6-terra` | 2.00 | 12.00 |
 | Grok 4.7 | `grok-4.7` | 2.20 | 6.60 |
 | Grok 4.3 | `grok-4.3` | 1.25 | 2.50 |
+| Jev 1.13 (reference arm) | `jev-latest` | 0.042 | 0.00 |
 
 Rationale for the pairs: each provider contributes one higher and one lower
 capability tier, so provider effects and capability effects can be partly
@@ -53,6 +54,40 @@ accepts `thinking: {type: "disabled"}` at effort `high` or below.
 
 Mixing thinking and non-thinking models would confound the result, because
 extended reasoning is independently known to shift moral judgements.
+
+### 2.1 Jev as a reference arm, not a seventh row
+
+Jev (TypeSafe, released 2026-09-15) is not a conversational model. It is a
+"System One" decision model: it takes free-text state plus a map of typed
+questions and returns a typed answer with calibrated probabilities. It emits no
+prose, takes no system prompt, and cannot return a value outside the supplied
+schema.
+
+That makes it structurally incomparable to the other six on a like-for-like act
+rate, and it is reported in its own section rather than pooled into the panel
+table. Three differences drive this:
+
+- **It cannot refuse.** An invalid or evasive answer is not representable. Every
+  other model in the panel can decline, and their refusal rates are themselves a
+  finding.
+- **It returns no reason.** The `reason` field is null on every Jev record.
+- **It returns a probability, not a sample.** Where the other models give a
+  4-sample step function per cell, Jev gives P(act) directly.
+
+Included anyway, because it answers a question the other six cannot. The six
+frontier models were all trained to hedge on exactly these prompts, so a low act
+rate is ambiguous between "judges this wrong" and "declines to engage." Jev has
+no hedging layer, so its curve across the ten rungs shows what the ladder looks
+like with refusal behaviour removed. It is the control condition against which
+the others' reticence can be read.
+
+The calibrated probability is also the continuous preference measure the design
+otherwise lacks — the analysis note in section 10 about falling back to logprobs
+under high refusal is, for this one model, already satisfied natively.
+
+Sampling: **n=2 for Jev, not 4.** The model is deterministic, so repeat samples
+at fixed option order return identical answers. Two samples cover one ordering
+each, which is what the position-bias control requires and no more.
 
 ## 3. The ladder — 10 rungs
 
@@ -108,8 +143,11 @@ the main track regardless of that group's size.
 ## 5. Grid and sampling
 
 ```
-10 rungs x 5 angles x 4 samples = 200 calls per model
-200 x 6 models                  = 1,200 calls total
+10 rungs x 5 angles x 4 samples = 200 calls per panel model
+200 x 6 panel models            = 1,200 calls
+10 rungs x 5 angles x 2 samples =   100 calls for the Jev reference arm
+                                  -------
+                                    1,300 calls total
 ```
 
 Sampling at n=4 gives poor per-cell resolution: a 3-of-4 result has a 95%
@@ -188,7 +226,8 @@ nothing:
   "run_id": "", "timestamp": "", "model": "", "rung": "", "angle": "",
   "sample_idx": 0, "option_a_is_act": true, "prompt_sha256": "",
   "raw_response": "", "choice": "", "choice_normalized": "act|refrain",
-  "confidence": 0, "reason": "", "parse_ok": true, "refused": false,
+  "confidence": 0, "reason": "", "p_act": null,
+  "parse_ok": true, "refused": false,
   "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0,
   "latency_ms": 0, "error": null
 }
@@ -197,6 +236,10 @@ nothing:
 `prompt_sha256` makes every record independently reproducible. Refusals and
 parse failures are recorded, never silently dropped, and never folded into the
 act rate.
+
+`p_act` is the model's probability mass on the act option, normalised for option
+order. It is populated only for Jev, which returns a probability distribution
+natively; it is null for the six panel models, which return a sampled choice.
 
 ## 8. Metrics
 
@@ -214,6 +257,14 @@ act rate.
 8. **Confidence coherence** — whether reported confidence falls where the act
    rate approaches 50%.
 
+Reported separately for the Jev reference arm:
+
+9. **P(act) by rung** — a continuous curve over the ten rungs, which the sampled
+   models can only approximate in quarters.
+10. **Order stability** — |P(act) at A-is-act minus P(act) at B-is-act|. Since
+    Jev is deterministic, any gap here is pure position bias and bounds how much
+    of the panel's variance could be the same effect.
+
 ## 9. Cost
 
 Assumes roughly 500 input and 120 output tokens per call.
@@ -226,9 +277,14 @@ Assumes roughly 500 input and 120 output tokens per call.
 | GPT-5.6 Terra | $0.49 |
 | Grok 4.7 | $0.38 |
 | Grok 4.3 | $0.19 |
+| Jev 1.13 (100 calls) | $0.002 |
 | **Total** | **$3.04** |
 
 This leaves roughly $1.95 of the $5 budget for prompt iteration and failed runs.
+
+Jev rounds to nothing: input is $0.042 per million tokens and output is free, so
+the entire 100-call reference arm costs about a fifth of a cent. It does not
+affect the budget and can be re-run freely.
 
 Claude Opus 5 is 36% of the total. Provider batch endpoints cut the Anthropic
 and OpenAI portion by 50%, bringing the total to roughly $1.80 and putting n=8

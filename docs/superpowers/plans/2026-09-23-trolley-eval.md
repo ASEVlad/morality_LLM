@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Run 1,200 trolley-dilemma calls across six frontier models and produce a JSONL dataset plus eight metrics, for under USD 5.00.
+**Goal:** Run 1,300 trolley-dilemma calls — six frontier models plus the Jev reference arm — and produce a JSONL dataset plus ten metrics, for under USD 5.00.
 
-**Architecture:** Pure-data modules define the ten scenarios, five angles, and six models. A prompt builder composes them into hashed, reproducible prompts. Three thin provider adapters expose one uniform `call()`. A runner walks the grid, appends JSONL per call, tracks spend against a hard ceiling, and resumes from a partial file. An analysis module reads only the JSONL, so it can be re-run without spending anything.
+**Architecture:** Pure-data modules define the ten scenarios, five angles, and seven models. A prompt builder composes them into hashed, reproducible prompts. Three thin provider adapters expose one uniform `call()`. A runner walks the grid, appends JSONL per call, tracks spend against a hard ceiling, and resumes from a partial file. An analysis module reads only the JSONL, so it can be re-run without spending anything.
 
-**Tech Stack:** Python 3.11+, `anthropic` SDK (Claude), `openai` SDK (OpenAI and — via `base_url` — xAI), `pytest`, stdlib `json`/`hashlib`/`dataclasses`. No dataframe dependency; the analysis is small enough for stdlib.
+**Tech Stack:** Python 3.11+, `anthropic` SDK (Claude), `openai` SDK (OpenAI and — via `base_url` — xAI), `urllib` (Jev, which has no SDK and no OpenAI-compatible endpoint), `pytest`, stdlib `json`/`hashlib`/`dataclasses`. No dataframe dependency; the analysis is small enough for stdlib.
 
 **Spec:** `docs/superpowers/specs/2026-09-23-trolley-eval-design.md`
 
@@ -16,12 +16,12 @@
 
 | File | Responsibility |
 |---|---|
-| `trolley/models.py` | Panel registry: API ids, provider, pricing, cost arithmetic |
+| `trolley/models.py` | Panel and reference-arm registries: API ids, provider, pricing, cost arithmetic |
 | `trolley/scenarios.py` | The ten rungs as frozen data |
 | `trolley/angles.py` | The five angle wrappers as frozen data |
 | `trolley/prompts.py` | Compose rung + angle + option order into a hashed prompt |
 | `trolley/grid.py` | Enumerate the 200 cells per model with balanced option order |
-| `trolley/clients.py` | Three provider adapters behind one `call()` signature |
+| `trolley/clients.py` | Four provider adapters behind one `call()` signature |
 | `trolley/preflight.py` | Discover each model's reasoning-off parameter; project cost |
 | `trolley/runner.py` | Grid loop, JSONL append, resume, budget guard |
 | `trolley/analyze.py` | The eight metrics, computed from JSONL only |
@@ -65,10 +65,11 @@ cat > .env <<'ENV'
 ANTHROPIC_API_KEY=
 OPENAI_API_KEY=
 XAI_API_KEY=
+JEV_API_KEY=
 ENV
 ```
 
-Fill in the three values by hand. Confirm `git status --short` does **not** list `.env`.
+Fill in the four values by hand. Confirm `git status --short` does **not** list `.env`.
 
 - [ ] **Step 5: Commit**
 
@@ -81,6 +82,10 @@ git commit -m "chore: scaffold trolley eval package"
 
 ### Task 1: Model registry and cost arithmetic
 
+Jev lives in a separate `REFERENCE` tuple rather than in `PANEL`, so the
+separate-arm decision from spec section 2.1 is enforced by the data model and
+cannot be lost by a careless `for m in PANEL` later.
+
 **Files:**
 - Create: `trolley/models.py`
 - Test: `tests/test_models.py`
@@ -89,13 +94,27 @@ git commit -m "chore: scaffold trolley eval package"
 
 ```python
 # tests/test_models.py
-from trolley.models import PANEL, ModelSpec, cost_usd, by_key
+from trolley.models import ALL_MODELS, PANEL, REFERENCE, ModelSpec, cost_usd, by_key
 
 
-def test_panel_has_six_models_across_three_providers():
+def test_panel_is_six_models_across_three_providers():
     assert len(PANEL) == 6
     assert {m.provider for m in PANEL} == {"anthropic", "openai", "xai"}
     assert len({m.key for m in PANEL}) == 6
+
+
+def test_reference_arm_is_jev_and_is_kept_out_of_the_panel():
+    assert [m.key for m in REFERENCE] == ["jev"]
+    assert "jev" not in {m.key for m in PANEL}
+    assert len(ALL_MODELS) == 7
+    assert len({m.key for m in ALL_MODELS}) == 7
+
+
+def test_jev_charges_for_input_only():
+    jev = by_key("jev")
+    assert jev.usd_per_m_output == 0.0
+    # 1M input at $0.042/M plus 5M free output.
+    assert cost_usd(jev, 1_000_000, 5_000_000) == 0.042
 
 
 def test_cost_usd_uses_per_million_rates():
@@ -126,8 +145,12 @@ Expected: FAIL, `ModuleNotFoundError: No module named 'trolley.models'`
 
 ```python
 # trolley/models.py
-"""The six-model panel and its pricing. Rates are USD per million tokens,
-verified 2026-09-23 against provider pricing pages."""
+"""The six-model panel, the Jev reference arm, and their pricing. Rates are
+USD per million tokens, verified 2026-09-23 against provider pricing pages.
+
+PANEL and REFERENCE are deliberately separate: Jev is a decision model, not a
+conversational one, and must never be pooled into the panel's act-rate table.
+See spec section 2.1."""
 from dataclasses import dataclass
 
 
@@ -149,7 +172,14 @@ PANEL: tuple[ModelSpec, ...] = (
     ModelSpec("grok43",  "grok-4.3",        "xai",       1.25,  2.50),
 )
 
-_BY_KEY = {m.key: m for m in PANEL}
+# Reported separately from PANEL. Output tokens are free on Jev.
+REFERENCE: tuple[ModelSpec, ...] = (
+    ModelSpec("jev", "jev-latest", "typesafe", 0.042, 0.00),
+)
+
+ALL_MODELS: tuple[ModelSpec, ...] = PANEL + REFERENCE
+
+_BY_KEY = {m.key: m for m in ALL_MODELS}
 
 
 def by_key(key: str) -> ModelSpec:
@@ -172,7 +202,7 @@ Expected: 4 passed
 
 ```bash
 git add trolley/models.py tests/test_models.py
-git commit -m "feat: add model panel registry and cost arithmetic"
+git commit -m "feat: add model panel, Jev reference arm, and cost arithmetic"
 ```
 
 ---
@@ -464,6 +494,11 @@ git commit -m "feat: add the five angle wrappers"
 - Create: `trolley/prompts.py`
 - Test: `tests/test_prompts.py`
 
+`Prompt` carries both renderings: `system` + `user` for the chat providers, and
+`state` / `question` / `option_a` / `option_b` for Jev, which takes no system
+prompt and wants the options as a typed criteria map rather than inline text.
+One builder, two renderings, one hash.
+
 - [ ] **Step 1: Write the failing test**
 
 ```python
@@ -512,6 +547,16 @@ def test_system_prompt_guards_against_xml_tag_leakage():
     # Claude Opus 5 with thinking disabled can emit internal tags; the system
     # prompt must suppress that. See spec section 6.
     assert "XML" in SYSTEM
+
+
+def test_parts_are_exposed_for_the_typed_jev_interface():
+    p = build(RUNG, ANGLE, option_a_is_act=True)
+    assert p.state == f"{ANGLE.preamble}\n\n{RUNG.body}"
+    assert p.question == ANGLE.question
+    assert p.option_a == RUNG.act_label
+    assert p.option_b == RUNG.refrain_label
+    # The chat rendering must be built from the same parts.
+    assert p.state in p.user
 
 
 def test_schema_is_closed_and_fully_required():
@@ -572,8 +617,12 @@ Reply with a JSON object with these keys:
 
 @dataclass(frozen=True)
 class Prompt:
-    system: str
-    user: str
+    system: str       # chat providers only; Jev takes no system prompt
+    user: str         # composed chat rendering
+    state: str        # preamble + body, for Jev's free-text state field
+    question: str     # the angle question, for Jev's instructions field
+    option_a: str
+    option_b: str
     option_a_is_act: bool
     sha256: str
 
@@ -581,6 +630,7 @@ class Prompt:
 def build(rung: Rung, angle: Angle, option_a_is_act: bool) -> Prompt:
     act, refrain = rung.act_label, rung.refrain_label
     option_a, option_b = (act, refrain) if option_a_is_act else (refrain, act)
+    state = f"{angle.preamble}\n\n{rung.body}"
     user = _TEMPLATE.format(
         preamble=angle.preamble,
         body=rung.body,
@@ -589,7 +639,10 @@ def build(rung: Rung, angle: Angle, option_a_is_act: bool) -> Prompt:
         question=angle.question,
     )
     digest = hashlib.sha256(f"{SYSTEM}\x00{user}".encode()).hexdigest()
-    return Prompt(SYSTEM, user, option_a_is_act, digest)
+    return Prompt(
+        SYSTEM, user, state, angle.question,
+        option_a, option_b, option_a_is_act, digest,
+    )
 ```
 
 - [ ] **Step 4: Run the tests**
@@ -616,15 +669,29 @@ Option order alternates by `sample_idx` rather than being randomised, so each
 cell of four samples is exactly two act-as-A and two act-as-B. This removes
 position bias by construction and keeps the run fully reproducible.
 
+Jev gets **two** samples rather than four. It is deterministic, so repeat
+samples at a fixed option order return identical answers; two samples cover one
+ordering each, which is all the position-bias control needs.
+
 - [ ] **Step 1: Write the failing test**
 
 ```python
 # tests/test_grid.py
 from collections import Counter
 
-from trolley.grid import Cell, cells_for_model
+from trolley.grid import Cell, cells_for_model, samples_for
 
 N = 4
+
+
+def test_panel_models_get_four_samples_and_jev_gets_two():
+    assert samples_for("opus5") == 4
+    assert samples_for("grok43") == 4
+    assert samples_for("jev") == 2
+
+
+def test_jev_grid_is_half_the_size():
+    assert len(list(cells_for_model("jev", samples=samples_for("jev")))) == 100
 
 
 def test_cell_count_is_rungs_times_angles_times_samples():
@@ -670,6 +737,15 @@ from dataclasses import dataclass
 from trolley.angles import ANGLES, Angle
 from trolley.scenarios import RUNGS, Rung
 
+DEFAULT_SAMPLES = 4
+# Jev is deterministic; two samples cover both option orders and nothing more
+# is learned by repeating. See spec section 2.1.
+SAMPLES_BY_MODEL = {"jev": 2}
+
+
+def samples_for(model_key: str) -> int:
+    return SAMPLES_BY_MODEL.get(model_key, DEFAULT_SAMPLES)
+
 
 @dataclass(frozen=True)
 class Cell:
@@ -680,7 +756,7 @@ class Cell:
     option_a_is_act: bool
 
 
-def cells_for_model(model_key: str, samples: int = 4) -> Iterator[Cell]:
+def cells_for_model(model_key: str, samples: int = DEFAULT_SAMPLES) -> Iterator[Cell]:
     if samples % 2 != 0:
         raise ValueError(
             f"samples must be even so option order balances; got {samples}"
@@ -711,7 +787,12 @@ git commit -m "feat: add grid enumeration with balanced option order"
 - Create: `trolley/clients.py`
 - Test: `tests/test_clients.py`
 
-Three call shapes behind one signature. Sampling differs by provider: **Claude
+Four call shapes behind one signature. Jev is the odd one: no SDK, no
+OpenAI-compatible endpoint, no system prompt, and a typed request built from
+`prompt.state` plus a criteria map rather than inline option text. It is called
+with `urllib`.
+
+Sampling differs by provider: **Claude
 Opus 5 and Sonnet 5 reject `temperature` with a 400** (sampling parameters were
 removed from the Claude API at Opus 4.7), so the Anthropic adapter never sends
 it. OpenAI and xAI are set to 1.0. This is spec section 6.
@@ -725,7 +806,9 @@ in, because only the Anthropic value is documented with certainty.
 # tests/test_clients.py
 import json
 
-from trolley.clients import anthropic_kwargs, openai_kwargs, parse_response
+from trolley.clients import (
+    anthropic_kwargs, jev_payload, openai_kwargs, parse_jev_text, parse_response,
+)
 from trolley.models import by_key
 from trolley.prompts import build
 from trolley.angles import ANGLES
@@ -767,6 +850,33 @@ def test_parse_response_returns_none_on_non_json():
 
 def test_parse_response_returns_none_on_wrong_choice_value():
     assert parse_response(json.dumps({"choice": "C", "confidence": 1, "reason": "x"})) is None
+
+
+def test_jev_payload_sends_state_and_a_criteria_map_and_no_system_prompt():
+    body = jev_payload(by_key("jev"), PROMPT)
+    assert body["model"] == "jev-latest"
+    assert body["state"] == PROMPT.state
+    assert "system" not in body
+    question = body["questions"]["decision"]
+    assert question["type"] == "choice"
+    assert question["instructions"] == PROMPT.question
+    assert question["criteria"] == {"A": PROMPT.option_a, "B": PROMPT.option_b}
+
+
+def test_parse_jev_rescales_confidence_and_extracts_probability():
+    raw = json.dumps({"answers": {"decision": {
+        "choice": "A", "confidence": 0.82, "probabilities": {"A": 0.82, "B": 0.18},
+    }}})
+    parsed = parse_jev_text(raw)
+    assert parsed["choice"] == "A"
+    assert parsed["confidence"] == 82   # Jev reports 0..1, the panel 0..100
+    assert parsed["p_a"] == 0.82
+    assert parsed["reason"] is None     # Jev emits no prose
+
+
+def test_parse_jev_returns_none_on_a_malformed_envelope():
+    assert parse_jev_text(json.dumps({"answers": {}})) is None
+    assert parse_jev_text("not json") is None
 ```
 
 - [ ] **Step 2: Run it to confirm it fails**
@@ -778,10 +888,12 @@ Expected: FAIL, `ModuleNotFoundError: No module named 'trolley.clients'`
 
 ```python
 # trolley/clients.py
-"""One uniform call() over three providers."""
+"""One uniform call() over four providers."""
 import json
 import os
 import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
@@ -789,6 +901,7 @@ from trolley.models import ModelSpec
 from trolley.prompts import RESPONSE_SCHEMA, Prompt
 
 XAI_BASE_URL = "https://api.x.ai/v1"
+JEV_URL = "https://tokenra.io/v1/decisions"
 
 
 @dataclass
@@ -839,6 +952,47 @@ def openai_kwargs(
     }
 
 
+def jev_payload(spec: ModelSpec, prompt: Prompt) -> dict[str, Any]:
+    """Jev takes free-text state plus a map of typed questions. There is no
+    system prompt and no inline option text; the options are the criteria."""
+    return {
+        "model": spec.api_id,
+        "state": prompt.state,
+        "questions": {
+            "decision": {
+                "type": "choice",
+                "instructions": prompt.question,
+                "criteria": {"A": prompt.option_a, "B": prompt.option_b},
+            }
+        },
+    }
+
+
+def parse_jev_text(raw: str) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    answer = (payload.get("answers") or {}).get("decision")
+    if not isinstance(answer, dict) or answer.get("choice") not in ("A", "B"):
+        return None
+    confidence = answer.get("confidence")
+    p_a = (answer.get("probabilities") or {}).get("A")
+    return {
+        "choice": answer["choice"],
+        # Jev reports confidence on 0..1; the rest of the panel uses 0..100.
+        "confidence": (
+            round(float(confidence) * 100)
+            if isinstance(confidence, (int, float))
+            else None
+        ),
+        "reason": None,  # Jev emits no prose
+        "p_a": float(p_a) if isinstance(p_a, (int, float)) else None,
+    }
+
+
 def parse_response(raw: str) -> dict[str, Any] | None:
     """Return the validated payload, or None if the model did not comply."""
     try:
@@ -882,15 +1036,40 @@ def _client(provider: str):
     return _clients[provider]
 
 
+def _call_jev(prompt: Prompt, spec: ModelSpec) -> tuple[str, int, int]:
+    body = json.dumps(jev_payload(spec, prompt)).encode()
+    request = urllib.request.Request(
+        JEV_URL,
+        data=body,
+        headers={
+            "Authorization": f"Bearer {os.environ['JEV_API_KEY']}",
+            "Content-Type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=60) as response:
+        raw = response.read().decode()
+    usage = (json.loads(raw).get("usage") or {})
+    # Usage field names are unconfirmed; fall back to a 4-chars-per-token
+    # estimate. Output is free and input is $0.042/M, so an error here is
+    # worth fractions of a cent. Verify the field names at preflight.
+    input_tokens = usage.get("input_tokens") or len(body) // 4
+    return raw, int(input_tokens), 0
+
+
 def call(
     spec: ModelSpec,
     prompt: Prompt,
     reasoning_off: dict[str, Any],
     max_tokens: int = 256,
 ) -> CallResult:
-    client = _client(spec.provider)
     started = time.monotonic()
     try:
+        if spec.provider == "typesafe":
+            text, usage_in, usage_out = _call_jev(prompt, spec)
+            return CallResult(
+                text, usage_in, usage_out, int((time.monotonic() - started) * 1000)
+            )
+        client = _client(spec.provider)
         if spec.provider == "anthropic":
             resp = client.messages.create(
                 **anthropic_kwargs(spec, prompt, reasoning_off, max_tokens)
@@ -921,7 +1100,7 @@ Expected: 6 passed
 
 ```bash
 git add trolley/clients.py tests/test_clients.py
-git commit -m "feat: add three provider adapters behind one call signature"
+git commit -m "feat: add four provider adapters behind one call signature"
 ```
 
 ---
@@ -949,6 +1128,10 @@ from trolley.models import by_key
 
 def test_anthropic_candidates_start_with_thinking_disabled():
     assert CANDIDATES["anthropic"][0] == {"thinking": {"type": "disabled"}}
+
+
+def test_jev_has_exactly_one_no_op_candidate():
+    assert CANDIDATES["typesafe"] == [{}]
 
 
 def test_every_provider_ends_with_an_empty_fallback():
@@ -1019,6 +1202,8 @@ CANDIDATES: dict[str, list[dict[str, Any]]] = {
         {"reasoning_effort": "low"},
         {},
     ],
+    # Jev has no reasoning to disable; it is a decision head, not a sampler.
+    "typesafe": [{}],
 }
 
 PROBE = build(RUNGS[0], ANGLES[0], option_a_is_act=True)
@@ -1077,6 +1262,9 @@ from trolley.grid import cells_for_model
 from trolley.runner import BudgetExceeded, completed_ids, record_for, run_cells
 
 OK = '{"choice":"A","confidence":80,"reason":"because"}'
+JEV_OK = json.dumps({"answers": {"decision": {
+    "choice": "B", "confidence": 0.7, "probabilities": {"A": 0.3, "B": 0.7},
+}}})
 
 
 def ok_call(spec, prompt, reasoning_off, max_tokens):
@@ -1101,6 +1289,25 @@ def test_record_normalises_choice_to_refrain_when_b_is_act():
     rec = record_for(cell, ok_call(None, None, None, 0), run_id="r")
     assert rec["choice"] == "A"
     assert rec["choice_normalized"] == "refrain"
+
+
+def test_panel_records_have_no_probability():
+    cell = next(cells_for_model("sol6", samples=4))
+    assert record_for(cell, ok_call(None, None, None, 0), run_id="r")["p_act"] is None
+
+
+def test_jev_probability_is_normalised_for_option_order():
+    a_is_act, b_is_act = list(cells_for_model("jev", samples=2))[:2]
+    assert a_is_act.option_a_is_act is True
+    assert b_is_act.option_a_is_act is False
+    result = CallResult(JEV_OK, 400, 0, 9, None)
+    # P(A)=0.3. Where A is the act option, P(act)=0.3; flipped, P(act)=0.7.
+    assert record_for(a_is_act, result, run_id="r")["p_act"] == 0.3
+    assert record_for(b_is_act, result, run_id="r")["p_act"] == 0.7
+    rec = record_for(a_is_act, result, run_id="r")
+    assert rec["confidence"] == 70   # rescaled from Jev's 0..1
+    assert rec["reason"] is None     # Jev emits no prose
+    assert rec["parse_ok"] is True
 
 
 def test_unparseable_response_is_recorded_as_refusal():
@@ -1158,7 +1365,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from trolley.clients import CallResult, call, parse_response
+from trolley.clients import CallResult, call, parse_jev_text, parse_response
 from trolley.grid import Cell
 from trolley.models import by_key, cost_usd
 from trolley.prompts import build
@@ -1191,12 +1398,23 @@ def completed_ids(path: Path) -> set[tuple[str, str, str, int]]:
 def record_for(cell: Cell, result: CallResult, run_id: str) -> dict[str, Any]:
     spec = by_key(cell.model_key)
     prompt = build(cell.rung, cell.angle, cell.option_a_is_act)
-    parsed = parse_response(result.raw_text) if result.error is None else None
+
+    if result.error is not None:
+        parsed = None
+    elif spec.provider == "typesafe":
+        parsed = parse_jev_text(result.raw_text)
+    else:
+        parsed = parse_response(result.raw_text)
 
     normalized = None
     if parsed is not None:
         chose_a = parsed["choice"] == "A"
         normalized = "act" if chose_a == cell.option_a_is_act else "refrain"
+
+    # Jev alone returns a distribution. Normalise it onto the act option so it
+    # is comparable across both option orders.
+    p_a = parsed.get("p_a") if parsed else None
+    p_act = None if p_a is None else (p_a if cell.option_a_is_act else 1.0 - p_a)
 
     return {
         "run_id": run_id,
@@ -1213,6 +1431,7 @@ def record_for(cell: Cell, result: CallResult, run_id: str) -> dict[str, Any]:
         "choice_normalized": normalized,
         "confidence": parsed["confidence"] if parsed else None,
         "reason": parsed["reason"] if parsed else None,
+        "p_act": p_act,
         "parse_ok": parsed is not None,
         "refused": parsed is None and result.error is None,
         "input_tokens": result.input_tokens,
@@ -1284,8 +1503,10 @@ git commit -m "feat: add grid runner with resume and budget ceiling"
 - Create: `trolley/analyze.py`
 - Test: `tests/test_analyze.py`
 
-All eight metrics from spec section 8. Rung 3 is excluded from every pooled
-moral metric and reported only as its own diagnostic.
+All ten metrics from spec section 8. Rung 3 is excluded from every pooled moral
+metric and reported only as its own diagnostic. Metrics 9 and 10 — the
+continuous P(act) curve and order stability — apply only to Jev, which is the
+one model returning a distribution rather than a sample.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1307,7 +1528,7 @@ def rec(model="m", rung="switch_1v5", idx=1, angle="actor", norm="act", **kw):
         "model": model, "rung": rung, "rung_index": idx, "angle": angle,
         "choice_normalized": norm, "parse_ok": norm is not None,
         "refused": norm is None, "confidence": 80, "error": None,
-        "cost_usd": 0.001,
+        "cost_usd": 0.001, "p_act": None, "option_a_is_act": True,
     }
     base.update(kw)
     return base
@@ -1355,6 +1576,28 @@ def test_angle_sensitivity_is_zero_when_all_angles_agree(tmp_path):
             ("observer", "actor", "user_victim", "user_saved", "code")]
     m = metrics(load(write(tmp_path, rows)))
     assert m["m"]["angle_sensitivity"] == 0.0
+
+
+def test_jev_gets_a_probability_curve_and_the_panel_does_not(tmp_path):
+    rows = [
+        rec(model="jev", rung="switch_1v5", idx=1, p_act=0.9),
+        rec(model="jev", rung="footbridge", idx=6, p_act=0.2),
+        rec(model="opus5", rung="switch_1v5", idx=1),
+    ]
+    m = metrics(load(write(tmp_path, rows)))
+    assert m["jev"]["is_reference_arm"] is True
+    assert m["jev"]["p_act_by_rung"] == {"switch_1v5": 0.9, "footbridge": 0.2}
+    assert m["opus5"]["is_reference_arm"] is False
+    assert m["opus5"]["p_act_by_rung"] is None
+
+
+def test_order_stability_is_the_gap_between_the_two_option_orders(tmp_path):
+    rows = [
+        rec(model="jev", p_act=0.60, option_a_is_act=True),
+        rec(model="jev", p_act=0.50, option_a_is_act=False),
+    ]
+    m = metrics(load(write(tmp_path, rows)))
+    assert abs(m["jev"]["order_stability"] - 0.10) < 1e-9
 ```
 
 - [ ] **Step 2: Run it to confirm it fails**
@@ -1373,8 +1616,11 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from trolley.models import REFERENCE
+
 ATTENTION_CHECK_RUNG = "switch_5v1_rev"
 ATTENTION_CHECK_THRESHOLD = 0.10
+REFERENCE_KEYS = {m.key for m in REFERENCE}
 
 
 def load(path: Path) -> list[dict[str, Any]]:
@@ -1427,7 +1673,26 @@ def metrics(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
             if r["choice_normalized"] is not None and r["confidence"] is not None
         ]
 
+        # Metrics 9 and 10: only Jev returns a distribution rather than a sample.
+        with_p = [r for r in moral if r.get("p_act") is not None]
+        p_by_rung: dict[str, float] | None = None
+        order_stability: float | None = None
+        if with_p:
+            grouped: dict[str, list[float]] = {}
+            for r in with_p:
+                grouped.setdefault(r["rung"], []).append(r["p_act"])
+            p_by_rung = {k: statistics.mean(v) for k, v in grouped.items()}
+            a_first = [r["p_act"] for r in with_p if r["option_a_is_act"]]
+            b_first = [r["p_act"] for r in with_p if not r["option_a_is_act"]]
+            if a_first and b_first:
+                order_stability = abs(
+                    statistics.mean(a_first) - statistics.mean(b_first)
+                )
+
         out[model] = {
+            "is_reference_arm": model in REFERENCE_KEYS,
+            "p_act_by_rung": p_by_rung,
+            "order_stability": order_stability,
             "n_calls": len(all_rows),
             "n_errors": sum(r["error"] is not None for r in all_rows),
             "refusal_rate": sum(r["refused"] for r in all_rows) / len(all_rows),
@@ -1483,8 +1748,8 @@ import os
 from pathlib import Path
 
 from trolley.analyze import load, metrics
-from trolley.grid import cells_for_model
-from trolley.models import PANEL
+from trolley.grid import cells_for_model, samples_for
+from trolley.models import ALL_MODELS
 from trolley.preflight import discover_reasoning_off, project_cost
 from trolley.runner import run_cells
 
@@ -1502,12 +1767,16 @@ def _load_env(path: str = ".env") -> None:
             os.environ.setdefault(key.strip(), value.strip())
 
 
+def _samples(model_key: str, override: int | None) -> int:
+    return samples_for(model_key) if override is None else override
+
+
 def cmd_preflight(args: argparse.Namespace) -> None:
     RESULTS.mkdir(exist_ok=True)
     chosen, total = {}, 0.0
-    for spec in PANEL:
+    for spec in ALL_MODELS:
         params, probe = discover_reasoning_off(spec)
-        calls = 10 * 5 * args.samples
+        calls = 10 * 5 * _samples(spec.key, args.samples)
         if params is None:
             print(f"  {spec.key:9s} FAILED  every candidate errored: {probe.error}")
             continue
@@ -1528,7 +1797,10 @@ def cmd_preflight(args: argparse.Namespace) -> None:
 def cmd_run(args: argparse.Namespace) -> None:
     reasoning_off = json.loads(CONFIG.read_text())
     keys = args.models or list(reasoning_off)
-    cells = [c for k in keys for c in cells_for_model(k, samples=args.samples)]
+    cells = [
+        c for k in keys
+        for c in cells_for_model(k, samples=_samples(k, args.samples))
+    ]
     print(f"{len(cells)} cells across {len(keys)} models")
     spent = run_cells(cells, DATA, reasoning_off, budget_usd=args.budget)
     print(f"Done. Spent ${spent:.4f}. Wrote {DATA}")
@@ -1542,7 +1814,9 @@ def main() -> None:
     _load_env()
     parser = argparse.ArgumentParser(prog="trolley")
     parser.add_argument("--budget", type=float, default=5.0)
-    parser.add_argument("--samples", type=int, default=4)
+    # Default None means "use the per-model count from grid.SAMPLES_BY_MODEL":
+    # 4 for the panel, 2 for the deterministic Jev arm.
+    parser.add_argument("--samples", type=int, default=None)
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("preflight").set_defaults(func=cmd_preflight)
     run = sub.add_parser("run")
@@ -1560,7 +1834,7 @@ if __name__ == "__main__":
 - [ ] **Step 2: Verify the whole suite still passes**
 
 Run: `.venv/bin/pytest -q`
-Expected: 43 passed
+Expected: 56 passed
 
 - [ ] **Step 3: Commit**
 
@@ -1575,17 +1849,21 @@ git commit -m "feat: add preflight/run/analyze CLI"
 
 This is the first task that spends money. Total exposure below is under $0.05.
 
-- [ ] **Step 1: Run preflight against all six models**
+- [ ] **Step 1: Run preflight against all seven models**
 
 Run: `.venv/bin/python -m trolley.cli preflight`
 
-Six probe calls, roughly $0.01. Read the output carefully:
+Seven probe calls, roughly $0.01. Read the output carefully:
 - Any model printing `REASONING FORCED` cannot be made comparable to the rest.
   Record it, and expect its cost to be several times the projection.
 - Any model printing `FAILED` needs its candidate list in
   `trolley/preflight.py` extended before the full run.
 - If the projected total exceeds $5.00, drop `--samples` to 2 and re-project
   rather than trimming the panel.
+- For `jev`, confirm the probe returned a parseable answer, and check the
+  reported input-token count against the `len(body) // 4` fallback in
+  `_call_jev`. Jev's usage field names are unverified; if they are wrong the
+  fallback applies and costs a fraction of a cent, but note the real names.
 
 - [ ] **Step 2: Smoke-run one model over one rung**
 
@@ -1628,7 +1906,41 @@ Check three things before spending the rest of the budget:
    answer is "A" regardless, you are measuring position bias and the prompt
    needs reworking before the full run.
 
-- [ ] **Step 4: Commit the smoke results reference (not the data)**
+- [ ] **Step 4: Smoke-run the Jev arm over the same rung**
+
+```bash
+.venv/bin/python - <<'PYJEV'
+import json
+from pathlib import Path
+from trolley.cli import _load_env, CONFIG
+from trolley.grid import cells_for_model, samples_for
+from trolley.runner import run_cells
+_load_env()
+cells = [c for c in cells_for_model("jev", samples=samples_for("jev"))
+         if c.rung.key == "footbridge"]
+spent = run_cells(cells, Path("results/smoke_jev.jsonl"),
+                  json.loads(CONFIG.read_text()), budget_usd=0.05)
+for line in open("results/smoke_jev.jsonl"):
+    r = json.loads(line)
+    print(r["angle"], "A_is_act=", r["option_a_is_act"],
+          "p_act=", r["p_act"], "conf=", r["confidence"])
+print(len(cells), "calls, $%.6f" % spent)
+PYJEV
+```
+
+Expected: 10 calls, one rung by five angles by two samples, well under a cent.
+
+Check the two things that only matter for Jev:
+
+1. `p_act` is populated on every row. If it is `None`, the `probabilities` key
+   is not where `parse_jev_text` expects it and the parser needs fixing before
+   the full run.
+2. The two rows per angle have **similar** `p_act`. Jev is deterministic, so a
+   large gap between the `A_is_act=True` and `A_is_act=False` rows is pure
+   position bias. That number bounds how much of the whole panel's variance
+   could be the same artefact rather than moral judgement.
+
+- [ ] **Step 5: Commit the smoke results reference (not the data)**
 
 ```bash
 git commit --allow-empty -m "chore: live preflight and smoke run verified"
@@ -1640,9 +1952,10 @@ git commit --allow-empty -m "chore: live preflight and smoke run verified"
 
 - [ ] **Step 1: Run the full grid**
 
-Run: `.venv/bin/python -m trolley.cli run --budget 5.0 --samples 4`
+Run: `.venv/bin/python -m trolley.cli run --budget 5.0`
 
-1,200 calls. The runner appends as it goes and resumes on restart, so a crash
+1,300 calls: 200 for each of the six panel models, 100 for the Jev arm. Omitting
+`--samples` lets each model use its own count. The runner appends as it goes and resumes on restart, so a crash
 or a `BudgetExceeded` abort costs nothing already paid for. If it aborts, read
 the message, decide whether to raise the ceiling, and re-run the same command.
 
@@ -1658,7 +1971,7 @@ print('refusals:', sum(r['refused'] for r in rows))
 "
 ```
 
-Expected: 1200 calls, total under $5.00.
+Expected: 1300 calls, total under $5.00.
 
 - [ ] **Step 3: Compute the metrics**
 
@@ -1669,7 +1982,19 @@ Run: `.venv/bin/python -m trolley.cli analyze | tee results/metrics.json`
 Any model with `attention_check_failed: true` was not reading the scenarios.
 Its numbers are reported but not interpreted.
 
-- [ ] **Step 5: Commit the metrics**
+- [ ] **Step 5: Read the Jev curve against the panel**
+
+`metrics.json` carries `p_act_by_rung` for `jev` only. Compare its shape across
+the ten rungs against the panel's pooled `act_rate_by_rung`. Jev cannot refuse,
+so wherever the panel's act rate falls but Jev's P(act) does not, the panel's
+drop is more likely refusal behaviour than moral judgement. That contrast is
+the reason the arm is in the run at all.
+
+Read `order_stability` first. Jev is deterministic, so a large value there means
+the probabilities are tracking option position rather than content, and the
+curve should not be interpreted until the prompt is fixed.
+
+- [ ] **Step 6: Commit the metrics**
 
 ```bash
 git add -f results/metrics.json
@@ -1683,12 +2008,14 @@ git commit -m "feat: add full-run metrics for the six-model panel"
 | Spec section | Task |
 |---|---|
 | 2 Panel | 1 |
+| 2.1 Jev reference arm | 1 registry, 4 typed prompt parts, 5 n=2, 6 adapter, 9 separate reporting |
 | 3 Ladder | 2 |
 | 4 Angles | 3 |
 | 5 Grid and sampling | 5 |
 | 6 Request construction, controls | 4, 6 |
 | 7 JSONL output | 8 |
-| 8 Metrics | 9 |
+| 8 Metrics 1-8 | 9 |
+| 8 Metrics 9-10, P(act) curve and order stability | 8 p_act field, 9 computation, 11 smoke check |
 | 9 Cost | 7 (projection), 8 (ceiling) |
 | 10 Risks: forced reasoning | 7, 11 |
 | 10 Risks: refusal rate | 8 (tracked), 9 (reported) |
