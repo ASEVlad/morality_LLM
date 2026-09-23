@@ -60,3 +60,9 @@ def test_schema_is_closed_and_fully_required():
     assert set(RESPONSE_SCHEMA["required"]) == props
     assert RESPONSE_SCHEMA["additionalProperties"] is False
     assert RESPONSE_SCHEMA["properties"]["choice"]["enum"] == ["A", "B"]
+
+def test_confidence_carries_no_range_keywords():
+    # The Claude API rejects minimum/maximum on an integer property, so the
+    # range is enforced in parse_response instead of in the schema.
+    confidence = RESPONSE_SCHEMA["properties"]["confidence"]
+    assert confidence == {"type": "integer"}

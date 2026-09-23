@@ -15,7 +15,11 @@ RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
         "choice": {"type": "string", "enum": ["A", "B"]},
-        "confidence": {"type": "integer", "minimum": 0, "maximum": 100},
+        # No minimum/maximum: the Claude API rejects those keywords on an
+        # integer property ("For 'integer' type, properties maximum, minimum
+        # are not supported"). The range is enforced client-side in
+        # clients.parse_response instead.
+        "confidence": {"type": "integer"},
         "reason": {"type": "string"},
     },
     "required": ["choice", "confidence", "reason"],

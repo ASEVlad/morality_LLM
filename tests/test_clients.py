@@ -71,3 +71,18 @@ def test_parse_jev_rescales_confidence_and_extracts_probability():
 def test_parse_jev_returns_none_on_a_malformed_envelope():
     assert parse_jev_text(json.dumps({"answers": {}})) is None
     assert parse_jev_text("not json") is None
+
+def test_out_of_range_confidence_is_clamped_not_rejected():
+    # The choice is the primary metric and must survive a bad confidence.
+    high = parse_response(json.dumps({"choice": "A", "confidence": 150, "reason": "x"}))
+    low = parse_response(json.dumps({"choice": "B", "confidence": -20, "reason": "x"}))
+    assert high == {"choice": "A", "confidence": 100, "reason": "x"}
+    assert low == {"choice": "B", "confidence": 0, "reason": "x"}
+
+
+def test_xai_non_reasoning_model_takes_no_reasoning_parameter():
+    # grok-4.20-0309-non-reasoning rejects reasoning_effort outright, so the
+    # empty candidate must produce a clean request.
+    kw = openai_kwargs(by_key("grok420"), PROMPT, {}, 256)
+    assert "reasoning_effort" not in kw
+    assert kw["model"] == "grok-4.20-0309-non-reasoning"

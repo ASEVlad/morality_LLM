@@ -21,7 +21,7 @@ PANEL: tuple[ModelSpec, ...] = (
     ModelSpec("sonnet5", "claude-sonnet-5", "anthropic", 2.00, 10.00),
     ModelSpec("sol6",    "gpt-6-sol",       "openai",    2.00, 10.00),
     ModelSpec("terra56", "gpt-5.6-terra",   "openai",    2.00, 12.00),
-    ModelSpec("grok47",  "grok-4.7",        "xai",       2.20,  6.60),
+    ModelSpec("grok420", "grok-4.20-0309-non-reasoning", "xai", 1.25, 2.50),
     ModelSpec("grok43",  "grok-4.3",        "xai",       1.25,  2.50),
 )
 

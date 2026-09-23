@@ -18,9 +18,11 @@ CANDIDATES: dict[str, list[dict[str, Any]]] = {
         {"reasoning_effort": "low"},
         {},
     ],
+    # No "low" fallback: it is not reasoning-off, and accepting it silently
+    # passed Grok 4.7 as compliant when it was still emitting 210 thinking
+    # tokens per call. Candidates are verified by reasoning_tokens below.
     "xai": [
         {"reasoning_effort": "none"},
-        {"reasoning_effort": "low"},
         {},
     ],
     # Jev has no reasoning to disable; it is a decision head, not a sampler.
@@ -38,7 +40,11 @@ def discover_reasoning_off(
     last = CallResult("", 0, 0, 0, "no candidates tried")
     for candidate in CANDIDATES[spec.provider]:
         last = call_fn(spec, PROBE, candidate, 256)
-        if last.error is None and parse(last.raw_text) is not None:
+        if (
+            last.error is None
+            and parse(last.raw_text) is not None
+            and last.reasoning_tokens == 0
+        ):
             return candidate, last
     return None, last
 

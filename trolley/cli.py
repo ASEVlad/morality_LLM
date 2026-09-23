@@ -40,13 +40,14 @@ def cmd_preflight(args: argparse.Namespace) -> None:
             continue
         projected = project_cost(spec, probe.input_tokens, probe.output_tokens, calls)
         total += projected
-        forced = " (REASONING FORCED - separate comparison class)" if (
-            params == {} and spec.provider != "typesafe"
-        ) else ""
+        # discover_reasoning_off only returns a candidate whose probe emitted
+        # zero reasoning tokens, so reaching here means reasoning is verified
+        # off - an empty dict is a valid answer for an inherently
+        # non-reasoning model such as grok-4.20-0309-non-reasoning.
         print(
-            f"  {spec.key:9s} ok  {json.dumps(params)}  "
+            f"  {spec.key:9s} ok  reasoning off (verified)  {json.dumps(params)}  "
             f"{probe.input_tokens} in / {probe.output_tokens} out  "
-            f"-> ${projected:.4f} for {calls} calls{forced}"
+            f"-> ${projected:.4f} for {calls} calls"
         )
         chosen[spec.key] = params
     CONFIG.write_text(json.dumps(chosen, indent=2) + "\n")

@@ -11,7 +11,7 @@ from trolley.models import ModelSpec
 from trolley.prompts import RESPONSE_SCHEMA, Prompt
 
 XAI_BASE_URL = "https://api.x.ai/v1"
-JEV_URL = "https://tokenra.io/v1/decisions"
+JEV_URL = "https://api.typesafe.ai/v1/systemone"
 
 
 @dataclass
@@ -21,6 +21,8 @@ class CallResult:
     output_tokens: int
     latency_ms: int
     error: str | None = None
+    # Non-zero means the model reasoned despite the reasoning-off attempt.
+    reasoning_tokens: int = 0
 
 
 def anthropic_kwargs(
@@ -117,7 +119,11 @@ def parse_response(raw: str) -> dict[str, Any] | None:
         return None
     if not isinstance(data.get("reason"), str):
         return None
-    return {k: data[k] for k in ("choice", "confidence", "reason")}
+    return {
+        "choice": data["choice"],
+        "confidence": max(0, min(100, data["confidence"])),
+        "reason": data["reason"],
+    }
 
 
 _clients: dict[str, Any] = {}
@@ -159,11 +165,11 @@ def _call_jev(prompt: Prompt, spec: ModelSpec) -> tuple[str, int, int]:
     with urllib.request.urlopen(request, timeout=60) as response:
         raw = response.read().decode()
     usage = json.loads(raw).get("usage") or {}
-    # Usage field names are unconfirmed; fall back to a 4-chars-per-token
-    # estimate. Output is free and input is $0.042/M, so an error here is
-    # worth fractions of a cent. Verify the field names at preflight.
+    # Field names confirmed live 2026-09-23 against api.typesafe.ai; the
+    # length estimate remains only as a guard if the shape ever changes.
     input_tokens = usage.get("input_tokens") or len(body) // 4
-    return raw, int(input_tokens), 0
+    output_tokens = usage.get("output_tokens") or 0
+    return raw, int(input_tokens), int(output_tokens)
 
 
 def call(
@@ -180,6 +186,7 @@ def call(
                 text, usage_in, usage_out, int((time.monotonic() - started) * 1000)
             )
         client = _client(spec.provider)
+        thought = 0
         if spec.provider == "anthropic":
             resp = client.messages.create(
                 **anthropic_kwargs(spec, prompt, reasoning_off, max_tokens)
@@ -194,8 +201,11 @@ def call(
             text = resp.choices[0].message.content or ""
             usage_in = resp.usage.prompt_tokens
             usage_out = resp.usage.completion_tokens
+            details = getattr(resp.usage, "completion_tokens_details", None)
+            thought = getattr(details, "reasoning_tokens", 0) or 0
     except Exception as exc:  # recorded, never raised into the grid loop
         return CallResult("", 0, 0, int((time.monotonic() - started) * 1000), repr(exc))
     return CallResult(
-        text, usage_in, usage_out, int((time.monotonic() - started) * 1000)
+        text, usage_in, usage_out, int((time.monotonic() - started) * 1000),
+        reasoning_tokens=thought,
     )

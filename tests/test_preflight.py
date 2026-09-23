@@ -43,3 +43,20 @@ def test_project_cost_scales_the_probe_to_the_full_grid():
     # 500 in / 100 out probe on sol6 ($2/$10) over 200 calls:
     # 200*500/1e6*2 + 200*100/1e6*10 = 0.2 + 0.2 = 0.4
     assert project_cost(by_key("sol6"), 500, 100, calls=200) == 0.4
+
+def test_candidate_that_still_reasons_is_rejected():
+    # Grok 4.7 parsed fine under reasoning_effort="low" while emitting 210
+    # thinking tokens. A parseable answer is not proof that reasoning is off.
+    def reasons_anyway(spec, prompt, reasoning_off, max_tokens):
+        return CallResult(
+            '{"choice":"A","confidence":1,"reason":"x"}', 10, 5, 1, None,
+            reasoning_tokens=210,
+        )
+
+    chosen, result = discover_reasoning_off(by_key("grok43"), call_fn=reasons_anyway)
+    assert chosen is None
+    assert result.reasoning_tokens == 210
+
+
+def test_xai_candidates_no_longer_offer_low():
+    assert {"reasoning_effort": "low"} not in CANDIDATES["xai"]
