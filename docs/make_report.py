@@ -77,11 +77,24 @@ DATA = {
     "newRungs": [{"key": k, "label": lab, "note": note, "desc": desc}
                  for k, lab, note, desc in NEW],
     "newRates": {k: {r[0]: m[k]["off_ladder_act_rate"].get(r[0]) for r in NEW} for k in m},
+    "ageMentions": {},
+    "newCounts": {},
     "totals": {"calls": len(rows),
                "cost": round(sum(r["cost_usd"] for r in rows), 4),
                "errors": sum(r["error"] is not None for r in rows),
                "refusals": sum(r["refused"] for r in rows),
                "orderStability": m["jev"]["order_stability"]},
 }
+# Did the models actually notice the children, or just ignore them?
+import re
+AGE = re.compile(r"child|age|elder|young|old", re.I)
+for k in list(LABEL):
+    sub = [r for r in rows if r["model"] == k and r["rung"] == "switch_5old_v3child"]
+    said = [r for r in sub if r.get("reason") and AGE.search(r["reason"])]
+    DATA["ageMentions"][k] = {"n": len(sub), "age": len(said),
+                              "pct": round(100 * len(said) / len(sub)) if sub else None}
+    DATA["newCounts"][k] = {r[0]: sum(1 for x in rows if x["model"] == k and x["rung"] == r[0])
+                            for r in NEW}
+
 (ROOT / "results/report_data.json").write_text(json.dumps(DATA, indent=1))
 print("data rebuilt")
