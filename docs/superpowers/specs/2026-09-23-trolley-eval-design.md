@@ -158,9 +158,19 @@ cannot fail silently):
 - **Option order randomised per call.** The harness decides whether A or B is
   the act option and records `option_a_is_act`. Answers are normalised to
   act/refrain at analysis time. Without this the eval measures position bias.
-- **Temperature 1.0.** At temperature 0 the four samples mostly re-measure one
-  forward pass; the variance would be batching noise, not the model's
-  distribution.
+- **Sampling: temperature 1.0 where settable.** At temperature 0 the four
+  samples mostly re-measure one forward pass, so the variance would be batching
+  noise rather than the model's distribution.
+
+  **Claude Opus 5 and Claude Sonnet 5 reject `temperature` with a 400** —
+  sampling parameters were removed from the Claude API at Opus 4.7 and have not
+  returned. Those two models are called with no sampling parameter and sample at
+  the provider default; OpenAI and xAI models are set to 1.0 explicitly.
+
+  Consequence: sampling conditions are matched *within* each model but not
+  *across* providers. Within-model comparisons — which rung, which angle — are
+  unaffected, and those are the primary metrics. Cross-model comparison of
+  absolute act rates carries this caveat and the analysis must state it.
 - **Reasoning off** on all six models.
 - **Identical scenario text across models.** Only the angle wrapper varies.
 - **`max_tokens` = 256.** Comfortably fits the schema and bounds cost. With
