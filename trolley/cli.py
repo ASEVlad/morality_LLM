@@ -71,20 +71,29 @@ def cmd_analyze(args: argparse.Namespace) -> None:
     print(json.dumps(metrics(load(DATA)), indent=2))
 
 
-def main() -> None:
-    _load_env()
-    parser = argparse.ArgumentParser(prog="trolley")
-    parser.add_argument("--budget", type=float, default=5.0)
+def build_parser() -> argparse.ArgumentParser:
+    # Shared flags live on the subparsers, not the top level, so that
+    # "trolley run --budget 4.5" works. On the top level argparse would
+    # require them before the subcommand, which nobody types.
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--budget", type=float, default=5.0)
     # Default None means "use the per-model count from grid.SAMPLES_BY_MODEL":
     # 4 for the panel, 2 for the deterministic Jev arm.
-    parser.add_argument("--samples", type=int, default=None)
+    common.add_argument("--samples", type=int, default=None)
+
+    parser = argparse.ArgumentParser(prog="trolley")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("preflight").set_defaults(func=cmd_preflight)
-    run = sub.add_parser("run")
+    sub.add_parser("preflight", parents=[common]).set_defaults(func=cmd_preflight)
+    run = sub.add_parser("run", parents=[common])
     run.add_argument("--models", nargs="*")
     run.set_defaults(func=cmd_run)
-    sub.add_parser("analyze").set_defaults(func=cmd_analyze)
-    args = parser.parse_args()
+    sub.add_parser("analyze", parents=[common]).set_defaults(func=cmd_analyze)
+    return parser
+
+
+def main() -> None:
+    _load_env()
+    args = build_parser().parse_args()
     args.func(args)
 
 
