@@ -42,20 +42,29 @@ git worktree add .worktrees/trolley-eval -b feat/trolley-eval
 cd .worktrees/trolley-eval
 ```
 
-- [ ] **Step 2: Create the virtualenv and install**
+- [ ] **Step 2: Confirm the dependencies are importable**
+
+This machine has no `python3-venv` (creating one needs `apt install
+python3.12-venv` and sudo), but `anthropic`, `openai` and `pytest` are already
+installed user-wide and support every parameter this plan uses. The system
+interpreter is used directly; commands below say `python3`, not `.venv/bin/...`.
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -q anthropic openai pytest
-.venv/bin/pip freeze | grep -Ei '^(anthropic|openai|pytest)=' > requirements.txt
+python3 -c "import anthropic, openai, pytest; print(anthropic.__version__, openai.__version__, pytest.__version__)"
+python3 -c "
+import pkg_resources as _
+" 2>/dev/null; printf 'anthropic\nopenai\npytest\n' > requirements.txt
 ```
+
+Expected: three version strings. Verified at execution time as
+anthropic 0.93.0, openai 1.109.1, pytest 8.3.3.
 
 - [ ] **Step 3: Create the package skeleton**
 
 ```bash
 mkdir -p trolley tests results
 touch trolley/__init__.py tests/__init__.py
-printf '.env\n.venv/\n__pycache__/\nresults/\n.worktrees/\n' > .gitignore
+printf '.env\n__pycache__/\nresults/\n.worktrees/\n' > .gitignore
 ```
 
 - [ ] **Step 4: Write `.env` with the six keys (not committed)**
@@ -138,7 +147,7 @@ def test_by_key_raises_on_unknown_model():
 
 - [ ] **Step 2: Run it to confirm it fails**
 
-Run: `.venv/bin/pytest tests/test_models.py -v`
+Run: `python3 -m pytest tests/test_models.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'trolley.models'`
 
 - [ ] **Step 3: Write the implementation**
@@ -195,7 +204,7 @@ def cost_usd(spec: ModelSpec, input_tokens: int, output_tokens: int) -> float:
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/pytest tests/test_models.py -v`
+Run: `python3 -m pytest tests/test_models.py -v`
 Expected: 4 passed
 
 - [ ] **Step 5: Commit**
@@ -250,7 +259,7 @@ def test_bodies_are_angle_neutral():
 
 - [ ] **Step 2: Run it to confirm it fails**
 
-Run: `.venv/bin/pytest tests/test_scenarios.py -v`
+Run: `python3 -m pytest tests/test_scenarios.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'trolley.scenarios'`
 
 - [ ] **Step 3: Write the implementation**
@@ -379,7 +388,7 @@ RUNGS: tuple[Rung, ...] = (
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/pytest tests/test_scenarios.py -v`
+Run: `python3 -m pytest tests/test_scenarios.py -v`
 Expected: 4 passed
 
 - [ ] **Step 5: Commit**
@@ -425,7 +434,7 @@ def test_only_the_user_angles_mention_the_user():
 
 - [ ] **Step 2: Run it to confirm it fails**
 
-Run: `.venv/bin/pytest tests/test_angles.py -v`
+Run: `python3 -m pytest tests/test_angles.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'trolley.angles'`
 
 - [ ] **Step 3: Write the implementation**
@@ -476,7 +485,7 @@ ANGLES: tuple[Angle, ...] = (
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/pytest tests/test_angles.py -v`
+Run: `python3 -m pytest tests/test_angles.py -v`
 Expected: 3 passed
 
 - [ ] **Step 5: Commit**
@@ -569,7 +578,7 @@ def test_schema_is_closed_and_fully_required():
 
 - [ ] **Step 2: Run it to confirm it fails**
 
-Run: `.venv/bin/pytest tests/test_prompts.py -v`
+Run: `python3 -m pytest tests/test_prompts.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'trolley.prompts'`
 
 - [ ] **Step 3: Write the implementation**
@@ -647,7 +656,7 @@ def build(rung: Rung, angle: Angle, option_a_is_act: bool) -> Prompt:
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/pytest tests/test_prompts.py -v`
+Run: `python3 -m pytest tests/test_prompts.py -v`
 Expected: 6 passed
 
 - [ ] **Step 5: Commit**
@@ -723,7 +732,7 @@ def test_odd_sample_counts_are_rejected():
 
 - [ ] **Step 2: Run it to confirm it fails**
 
-Run: `.venv/bin/pytest tests/test_grid.py -v`
+Run: `python3 -m pytest tests/test_grid.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'trolley.grid'`
 
 - [ ] **Step 3: Write the implementation**
@@ -769,7 +778,7 @@ def cells_for_model(model_key: str, samples: int = DEFAULT_SAMPLES) -> Iterator[
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/pytest tests/test_grid.py -v`
+Run: `python3 -m pytest tests/test_grid.py -v`
 Expected: 4 passed
 
 - [ ] **Step 5: Commit**
@@ -881,7 +890,7 @@ def test_parse_jev_returns_none_on_a_malformed_envelope():
 
 - [ ] **Step 2: Run it to confirm it fails**
 
-Run: `.venv/bin/pytest tests/test_clients.py -v`
+Run: `python3 -m pytest tests/test_clients.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'trolley.clients'`
 
 - [ ] **Step 3: Write the implementation**
@@ -1093,7 +1102,7 @@ def call(
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/pytest tests/test_clients.py -v`
+Run: `python3 -m pytest tests/test_clients.py -v`
 Expected: 6 passed
 
 - [ ] **Step 5: Commit**
@@ -1170,7 +1179,7 @@ def test_project_cost_scales_the_probe_to_the_full_grid():
 
 - [ ] **Step 2: Run it to confirm it fails**
 
-Run: `.venv/bin/pytest tests/test_preflight.py -v`
+Run: `python3 -m pytest tests/test_preflight.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'trolley.preflight'`
 
 - [ ] **Step 3: Write the implementation**
@@ -1229,7 +1238,7 @@ def project_cost(
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/pytest tests/test_preflight.py -v`
+Run: `python3 -m pytest tests/test_preflight.py -v`
 Expected: 5 passed
 
 - [ ] **Step 5: Commit**
@@ -1351,7 +1360,7 @@ def test_run_aborts_before_exceeding_the_budget(tmp_path):
 
 - [ ] **Step 2: Run it to confirm it fails**
 
-Run: `.venv/bin/pytest tests/test_runner.py -v`
+Run: `python3 -m pytest tests/test_runner.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'trolley.runner'`
 
 - [ ] **Step 3: Write the implementation**
@@ -1485,7 +1494,7 @@ def run_cells(
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/pytest tests/test_runner.py -v`
+Run: `python3 -m pytest tests/test_runner.py -v`
 Expected: 6 passed
 
 - [ ] **Step 5: Commit**
@@ -1602,7 +1611,7 @@ def test_order_stability_is_the_gap_between_the_two_option_orders(tmp_path):
 
 - [ ] **Step 2: Run it to confirm it fails**
 
-Run: `.venv/bin/pytest tests/test_analyze.py -v`
+Run: `python3 -m pytest tests/test_analyze.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'trolley.analyze'`
 
 - [ ] **Step 3: Write the implementation**
@@ -1719,7 +1728,7 @@ def metrics(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/pytest tests/test_analyze.py -v`
+Run: `python3 -m pytest tests/test_analyze.py -v`
 Expected: 5 passed
 
 - [ ] **Step 5: Commit**
@@ -1833,7 +1842,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 2: Verify the whole suite still passes**
 
-Run: `.venv/bin/pytest -q`
+Run: `python3 -m pytest -q`
 Expected: 56 passed
 
 - [ ] **Step 3: Commit**
@@ -1851,7 +1860,7 @@ This is the first task that spends money. Total exposure below is under $0.05.
 
 - [ ] **Step 1: Run preflight against all seven models**
 
-Run: `.venv/bin/python -m trolley.cli preflight`
+Run: `python3 -m trolley.cli preflight`
 
 Seven probe calls, roughly $0.01. Read the output carefully:
 - Any model printing `REASONING FORCED` cannot be made comparable to the rest.
@@ -1868,7 +1877,7 @@ Seven probe calls, roughly $0.01. Read the output carefully:
 - [ ] **Step 2: Smoke-run one model over one rung**
 
 ```bash
-.venv/bin/python - <<'PY'
+python3 - <<'PY'
 import json
 from pathlib import Path
 from trolley.cli import _load_env, CONFIG
@@ -1888,7 +1897,7 @@ model, under $0.02.
 - [ ] **Step 3: Inspect the smoke output by hand**
 
 ```bash
-.venv/bin/python -c "
+python3 -c "
 import json
 for ln in open('results/smoke.jsonl'):
     r = json.loads(ln)
@@ -1909,7 +1918,7 @@ Check three things before spending the rest of the budget:
 - [ ] **Step 4: Smoke-run the Jev arm over the same rung**
 
 ```bash
-.venv/bin/python - <<'PYJEV'
+python3 - <<'PYJEV'
 import json
 from pathlib import Path
 from trolley.cli import _load_env, CONFIG
@@ -1952,7 +1961,7 @@ git commit --allow-empty -m "chore: live preflight and smoke run verified"
 
 - [ ] **Step 1: Run the full grid**
 
-Run: `.venv/bin/python -m trolley.cli run --budget 5.0`
+Run: `python3 -m trolley.cli run --budget 5.0`
 
 1,300 calls: 200 for each of the six panel models, 100 for the Jev arm. Omitting
 `--samples` lets each model use its own count. The runner appends as it goes and resumes on restart, so a crash
@@ -1962,7 +1971,7 @@ the message, decide whether to raise the ceiling, and re-run the same command.
 - [ ] **Step 2: Confirm the run is complete and within budget**
 
 ```bash
-.venv/bin/python -c "
+python3 -c "
 import json
 rows = [json.loads(l) for l in open('results/calls.jsonl')]
 print(f'{len(rows)} calls, \${sum(r[\"cost_usd\"] for r in rows):.4f}')
@@ -1975,7 +1984,7 @@ Expected: 1300 calls, total under $5.00.
 
 - [ ] **Step 3: Compute the metrics**
 
-Run: `.venv/bin/python -m trolley.cli analyze | tee results/metrics.json`
+Run: `python3 -m trolley.cli analyze | tee results/metrics.json`
 
 - [ ] **Step 4: Check the attention check before reading anything else**
 
