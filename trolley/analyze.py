@@ -6,10 +6,13 @@ from pathlib import Path
 from typing import Any
 
 from trolley.models import REFERENCE
+from trolley.scenarios import RUNGS
 
 ATTENTION_CHECK_RUNG = "switch_5v1_rev"
 ATTENTION_CHECK_THRESHOLD = 0.10
 REFERENCE_KEYS = {m.key for m in REFERENCE}
+LADDER_RUNGS = {r.key for r in RUNGS if r.in_ladder}
+OFF_LADDER = {r.key for r in RUNGS if not r.in_ladder}
 
 
 def load(path: Path) -> list[dict[str, Any]]:
@@ -35,7 +38,13 @@ def metrics(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for model, all_rows in by_model.items():
         check = [r for r in all_rows if r["rung"] == ATTENTION_CHECK_RUNG]
-        moral = [r for r in all_rows if r["rung"] != ATTENTION_CHECK_RUNG]
+        # Only ladder rungs are pooled; the reading tests and the age pair are
+        # reported on their own.
+        moral = [r for r in all_rows if r["rung"] in LADDER_RUNGS]
+        off = {}
+        for r in all_rows:
+            if r["rung"] in OFF_LADDER:
+                off.setdefault(r["rung"], []).append(r)
 
         per_rung: dict[str, list[dict[str, Any]]] = {}
         for r in moral:
@@ -81,6 +90,7 @@ def metrics(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 
         out[model] = {
             "is_reference_arm": model in REFERENCE_KEYS,
+            "off_ladder_act_rate": {k: _act_rate(v) for k, v in off.items()},
             "p_act_by_rung": p_by_rung,
             "order_stability": order_stability,
             "n_calls": len(all_rows),

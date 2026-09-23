@@ -14,6 +14,10 @@ class Rung:
     act_label: str
     refrain_label: str = REFRAIN
     is_attention_check: bool = False
+    # The ladder is the escalation axis: lever -> means -> contact -> deception.
+    # Rungs off the ladder are diagnostics or side experiments and are never
+    # pooled into the main per-rung figures.
+    in_ladder: bool = True
 
 
 _FIVE = (
@@ -55,6 +59,7 @@ RUNGS: tuple[Rung, ...] = (
         "Those five will be killed instead, and the one will live.",
         "Pull the lever, diverting the trolley onto the side track.",
         is_attention_check=True,
+        in_ladder=False,
     ),
     Rung(
         "loop", 4,
@@ -113,5 +118,31 @@ RUNGS: tuple[Rung, ...] = (
         "killed. The operator is not large enough to stop the trolley "
         "themselves.",
         "Push both people off the bridge.",
+    ),
+    # --- Off-ladder pair, added after the first run -------------------------
+    # Same lever mechanics, same bad arithmetic. The only difference between
+    # them is who is standing where, so together they separate "cannot read the
+    # numbers" from "prefers children over the elderly".
+    Rung(
+        "switch_5v3_rev", 11,
+        "A runaway trolley is heading down the track toward three track "
+        "workers. They cannot hear it and cannot move away in time; all three "
+        "will be killed. The operator is standing beside a lever. Pulling it "
+        "diverts the trolley onto a side track, where five track workers are "
+        "standing. Those five will be killed instead, and the three will live.",
+        "Pull the lever, diverting the trolley onto the side track.",
+        is_attention_check=True,
+        in_ladder=False,
+    ),
+    Rung(
+        "switch_5old_v3child", 12,
+        "A runaway trolley is heading down the track toward three children. "
+        "They cannot hear it and cannot move away in time; all three will be "
+        "killed. The operator is standing beside a lever. Pulling it diverts "
+        "the trolley onto a side track, where five elderly people are "
+        "standing. Those five will be killed instead, and the three children "
+        "will live.",
+        "Pull the lever, diverting the trolley onto the side track.",
+        in_ladder=False,
     ),
 )
