@@ -44,7 +44,8 @@ body{background:var(--ground); color:var(--ink);
   -webkit-font-smoothing:antialiased;}
 .wrap{max-width:1080px; margin:0 auto;}
 .col{max-width:68ch; margin-inline:auto;}
-h1,h2{font-family:"Newsreader",Georgia,serif; font-weight:600; text-wrap:balance; margin:0;}
+h1,h2,h3{font-family:"Newsreader",Georgia,serif; font-weight:600; text-wrap:balance; margin:0;}
+h3{font-size:1.2rem; line-height:1.3; margin:34px 0 12px;}
 h1{font-size:clamp(2.2rem,6vw,3.5rem); line-height:1.05; letter-spacing:-.02em;}
 h2{font-size:clamp(1.4rem,3.2vw,1.95rem); line-height:1.16; letter-spacing:-.01em;}
 p{margin:0 0 1.05em;}
@@ -144,7 +145,7 @@ pre{background:var(--sunk); border:1px solid var(--rule); border-radius:3px; pad
 <header class="col">
   <p class="eyebrow">A small experiment &middot; September 2026</p>
   <h1>Where Models Stop Counting</h1>
-  <p class="standfirst">We gave seven AI models twelve versions of the trolley problem. Four of them
+  <p class="standfirst">We gave seven AI models thirteen versions of the trolley problem. Four of them
   answered a lot like people do &mdash; until the question got physical. Then they stopped paying
   attention to how many lives were at stake. Two other models never read the question at all.</p>
   <div class="runbar">
@@ -187,10 +188,10 @@ pre{background:var(--sunk); border:1px solid var(--rule); border-radius:3px; pad
 </section>
 
 <section class="col">
-  <h2>The twelve versions</h2>
-  <p class="lede">Ten versions form a ladder from easy to hard. At each step, either the action gets
-  more direct or the reason for doing it gets weaker. Two more versions sit outside the ladder and
-  ask a different question, which we come to later.</p>
+  <h2>The first ten versions</h2>
+  <p class="lede">There are thirteen versions in all. The ten below form a ladder from easy to
+  hard: at each step, either the action gets more direct or the reason for doing it gets weaker.
+  The other three come later, because they ask a different question.</p>
   <ol class="steps">
 <li><b>Pull a lever</b><span>The classic version. The trolley moves to a side track where one man stands.</span></li>
 <li><b>Lever, equal numbers</b><span>Same lever. But now one dies either way, so pulling saves nobody.</span></li>
@@ -290,7 +291,7 @@ pre{background:var(--sunk); border:1px solid var(--rule); border-radius:3px; pad
   Claude Sonnet 5, GPT-6 Sol and GPT-5.6 Terra.</p>
   <p>Grok 4.20 pulled the lever 17 times out of 40. Grok 4.3 pulled it 27 times out of 40 &mdash;
   more often than not.</p>
-  <h2 style="font-size:1.15rem;margin:30px 0 12px">So was it just hallucinating?</h2>
+  <h3>So was it just hallucinating?</h3>
   <p>Mostly yes, but not only. We read every reason the two models gave when they pulled, and there
   were two different failures.</p>
   <p><strong>Usually the model described the wrong problem.</strong> Grok 4.20 did this in 14 of its
@@ -463,7 +464,7 @@ pre{background:var(--sunk); border:1px solid var(--rule); border-radius:3px; pad
   four times per question and twice for Jev. That is rougher than the eight answers behind the main
   ladder, so read these as directions.</p>
 
-  <h2 style="font-size:1.2rem;margin:34px 0 12px">Is the model reading the numbers?</h2>
+  <h3>Is the model reading the numbers?</h3>
   <p>The first two versions are mirror images. Same five-against-three margin, opposite direction:</p>
   <ul class="plain">
     <li><strong>5 die, 3 live</strong> &mdash; the trolley heads at three, and pulling sends it into
@@ -475,7 +476,7 @@ pre{background:var(--sunk); border:1px solid var(--rule); border-radius:3px; pad
   pulling levers will pull in both.</p>
   <p>They pass it easily. The four models pull <b class="mono">0.90</b> of the time when pulling is right and <b class="mono">0.00</b> of the time when it is wrong &mdash; a gap of <b class="mono">+0.90</b>.</p><p>Claude Opus 5, GPT-6 Sol, GPT-5.6 Terra got it perfect: every single answer right in both directions. Claude Sonnet 5 pulled less often, which fits its habit of acting less than the others everywhere in this study, not a failure to read.</p><div class="note"><p><b>This also settles something from earlier.</b> When these models scored 0.00 on the first version, you could have argued they simply do not like pulling levers &mdash; a bias against acting rather than any reading of the numbers. The mirror rules that out. Same margin, same lever, same wording; only the direction changes, and the answer flips completely.</p></div><p>The two Grok models are the contrast, and this is the clearest view of their problem anywhere in the report:</p><ul class="plain"><li><strong>Grok 4.20 NR</strong> pulls <b class="mono">0.40</b> when pulling is wrong and <b class="mono">0.85</b> when it is right &mdash; a gap of only <b class="mono">+0.45</b>.</li><li><strong>Grok 4.3</strong> pulls <b class="mono">0.90</b> when pulling is wrong and <b class="mono">0.95</b> when it is right &mdash; a gap of only <b class="mono">+0.05</b>.</li></ul><p>Grok 4.3 pulls the lever about nine times in ten whichever way the trolley is pointing. The direction of the numbers barely reaches it at all. The other one does respond to direction, but still pulls wrongly two times in five.</p>
 
-  <h2 style="font-size:1.2rem;margin:34px 0 12px">Does it matter who is on the track?</h2>
+  <h3>Does it matter who is on the track?</h3>
   <p>The third version is the first one again, word for word, with one change: the three are
   children and the five are elderly people. The numbers are untouched.</p>
   <p>The answer hardly moves: <b class="mono">0.00</b> with anonymous workers, <b class="mono">0.00</b> with children and elderly people.</p><p>The obvious reading is that the models did not notice. That is not what happened, and we can check, because every answer came with a reason.</p><p>Claude Opus 5 (100%), GPT-6 Sol (95%) mention age or children in nearly every answer. They saw what had changed, weighed it, and said the count of lives still wins:</p><blockquote><span class="src">Claude Opus 5 &middot; did nothing</span>&ldquo;Actively diverting the trolley would kill five people to save three, and the greater number of lives lost outweighs age-based judgments about whose life matters more.&rdquo;</blockquote><p>Claude Sonnet 5 admitted the pull &mdash; &ldquo;the numbers alone argue against pulling the lever, though the age-based valuation makes this a genuinely hard case&rdquo; &mdash; and GPT-5.6 Terra named the cost out loud: &ldquo;even though doing nothing results in the deaths of three children.&rdquo;</p><p>So this is not a blind spot. These models put age on the scale and let the arithmetic win. Two extra lives beat two decades.</p><div class="note"><p><b>What this still cannot tell us.</b> It cannot measure how <em>much</em> age is worth to them. In both versions the numbers already point the same way, so we never find out where a model would change its mind. The version to run next is the one where the numbers do not decide it: three children on one track, three elderly people on the other.</p></div>

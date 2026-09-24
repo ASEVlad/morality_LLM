@@ -47,7 +47,8 @@ body{background:var(--ground); color:var(--ink);
   -webkit-font-smoothing:antialiased;}
 .wrap{max-width:1080px; margin:0 auto;}
 .col{max-width:68ch; margin-inline:auto;}
-h1,h2{font-family:"Newsreader",Georgia,serif; font-weight:600; text-wrap:balance; margin:0;}
+h1,h2,h3{font-family:"Newsreader",Georgia,serif; font-weight:600; text-wrap:balance; margin:0;}
+h3{font-size:1.2rem; line-height:1.3; margin:34px 0 12px;}
 h1{font-size:clamp(2.2rem,6vw,3.5rem); line-height:1.05; letter-spacing:-.02em;}
 h2{font-size:clamp(1.4rem,3.2vw,1.95rem); line-height:1.16; letter-spacing:-.01em;}
 p{margin:0 0 1.05em;}
@@ -315,7 +316,7 @@ def new_versions_section():
   four times per question and twice for Jev. That is rougher than the eight answers behind the main
   ladder, so read these as directions.</p>
 
-  <h2 style="font-size:1.2rem;margin:34px 0 12px">Is the model reading the numbers?</h2>
+  <h3>Is the model reading the numbers?</h3>
   <p>The first two versions are mirror images. Same five-against-three margin, opposite direction:</p>
   <ul class="plain">
     <li><strong>5 die, 3 live</strong> &mdash; the trolley heads at three, and pulling sends it into
@@ -327,7 +328,7 @@ def new_versions_section():
   pulling levers will pull in both.</p>
   {read}
 
-  <h2 style="font-size:1.2rem;margin:34px 0 12px">Does it matter who is on the track?</h2>
+  <h3>Does it matter who is on the track?</h3>
   <p>The third version is the first one again, word for word, with one change: the three are
   children and the five are elderly people. The numbers are untouched.</p>
   {agetxt}
@@ -339,7 +340,7 @@ BODY = """
 <header class="col">
   <p class="eyebrow">A small experiment &middot; September 2026</p>
   <h1>Where Models Stop Counting</h1>
-  <p class="standfirst">We gave seven AI models twelve versions of the trolley problem. Four of them
+  <p class="standfirst">We gave seven AI models thirteen versions of the trolley problem. Four of them
   answered a lot like people do &mdash; until the question got physical. Then they stopped paying
   attention to how many lives were at stake. Two other models never read the question at all.</p>
   <div class="runbar">
@@ -382,10 +383,10 @@ BODY = """
 </section>
 
 <section class="col">
-  <h2>The twelve versions</h2>
-  <p class="lede">Ten versions form a ladder from easy to hard. At each step, either the action gets
-  more direct or the reason for doing it gets weaker. Two more versions sit outside the ladder and
-  ask a different question, which we come to later.</p>
+  <h2>The first ten versions</h2>
+  <p class="lede">There are thirteen versions in all. The ten below form a ladder from easy to
+  hard: at each step, either the action gets more direct or the reason for doing it gets weaker.
+  The other three come later, because they ask a different question.</p>
   __STEPS__
   <p style="margin-top:26px">Version 3 is not a moral question at all. We reversed it, so pulling the
   lever now kills five and saves one. It is there to check that the model is reading the text in
@@ -474,7 +475,7 @@ BODY = """
   Claude Sonnet 5, GPT-6 Sol and GPT-5.6 Terra.</p>
   <p>Grok 4.20 pulled the lever 17 times out of 40. Grok 4.3 pulled it 27 times out of 40 &mdash;
   more often than not.</p>
-  <h2 style="font-size:1.15rem;margin:30px 0 12px">So was it just hallucinating?</h2>
+  <h3>So was it just hallucinating?</h3>
   <p>Mostly yes, but not only. We read every reason the two models gave when they pulled, and there
   were two different failures.</p>
   <p><strong>Usually the model described the wrong problem.</strong> Grok 4.20 did this in 14 of its
