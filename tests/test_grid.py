@@ -12,12 +12,12 @@ def test_panel_models_get_four_samples_and_jev_gets_two():
 
 
 def test_jev_grid_is_half_the_size():
-    assert len(list(cells_for_model("jev", samples=samples_for("jev")))) == 12 * 5 * 2
+    assert len(list(cells_for_model("jev", samples=samples_for("jev")))) == 13 * 5 * 2
 
 
 def test_cell_count_is_rungs_times_angles_times_samples():
     cells = list(cells_for_model("opus5", samples=N))
-    assert len(cells) == 12 * 5 * N
+    assert len(cells) == 13 * 5 * N
 
 
 def test_cells_are_unique():
@@ -33,7 +33,7 @@ def test_option_order_is_balanced_within_every_cell_group():
         if c.option_a_is_act:
             grouped[(c.rung.key, c.angle.key)] += 1
     assert set(grouped.values()) == {N // 2}
-    assert len(grouped) == 60
+    assert len(grouped) == 65
 
 
 def test_odd_sample_counts_are_rejected():

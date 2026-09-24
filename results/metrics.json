@@ -4,11 +4,12 @@
     "off_ladder_act_rate": {
       "switch_5v1_rev": 0.0,
       "switch_5v3_rev": 0.0,
-      "switch_5old_v3child": 0.0
+      "switch_5old_v3child": 0.0,
+      "switch_3v5": 1.0
     },
     "p_act_by_rung": null,
     "order_stability": null,
-    "n_calls": 440,
+    "n_calls": 460,
     "n_errors": 0,
     "refusal_rate": 0.0,
     "act_rate_overall": 0.22777777777777777,
@@ -37,18 +38,19 @@
     "attention_check_act_rate": 0.0,
     "attention_check_failed": false,
     "mean_confidence": 72.15277777777777,
-    "total_cost_usd": 2.2763
+    "total_cost_usd": 2.3722
   },
   "sonnet5": {
     "is_reference_arm": false,
     "off_ladder_act_rate": {
       "switch_5v1_rev": 0.0,
       "switch_5v3_rev": 0.0,
-      "switch_5old_v3child": 0.0
+      "switch_5old_v3child": 0.0,
+      "switch_3v5": 0.6
     },
     "p_act_by_rung": null,
     "order_stability": null,
-    "n_calls": 440,
+    "n_calls": 460,
     "n_errors": 0,
     "refusal_rate": 0.0,
     "act_rate_overall": 0.2,
@@ -77,18 +79,19 @@
     "attention_check_act_rate": 0.0,
     "attention_check_failed": false,
     "mean_confidence": 70.425,
-    "total_cost_usd": 0.9335
+    "total_cost_usd": 0.9734
   },
   "sol6": {
     "is_reference_arm": false,
     "off_ladder_act_rate": {
       "switch_5v1_rev": 0.0,
       "switch_5v3_rev": 0.0,
-      "switch_5old_v3child": 0.0
+      "switch_5old_v3child": 0.0,
+      "switch_3v5": 1.0
     },
     "p_act_by_rung": null,
     "order_stability": null,
-    "n_calls": 440,
+    "n_calls": 460,
     "n_errors": 0,
     "refusal_rate": 0.0,
     "act_rate_overall": 0.20277777777777778,
@@ -117,18 +120,19 @@
     "attention_check_act_rate": 0.0,
     "attention_check_failed": false,
     "mean_confidence": 80.71666666666667,
-    "total_cost_usd": 0.4335
+    "total_cost_usd": 0.4521
   },
   "terra56": {
     "is_reference_arm": false,
     "off_ladder_act_rate": {
       "switch_5v1_rev": 0.0,
       "switch_5v3_rev": 0.0,
-      "switch_5old_v3child": 0.0
+      "switch_5old_v3child": 0.0,
+      "switch_3v5": 1.0
     },
     "p_act_by_rung": null,
     "order_stability": null,
-    "n_calls": 440,
+    "n_calls": 460,
     "n_errors": 0,
     "refusal_rate": 0.0,
     "act_rate_overall": 0.43333333333333335,
@@ -157,18 +161,19 @@
     "attention_check_act_rate": 0.0,
     "attention_check_failed": false,
     "mean_confidence": 80.66666666666667,
-    "total_cost_usd": 0.4734
+    "total_cost_usd": 0.4933
   },
   "grok420": {
     "is_reference_arm": false,
     "off_ladder_act_rate": {
       "switch_5v1_rev": 0.425,
       "switch_5v3_rev": 0.4,
-      "switch_5old_v3child": 0.5
+      "switch_5old_v3child": 0.5,
+      "switch_3v5": 0.85
     },
     "p_act_by_rung": null,
     "order_stability": null,
-    "n_calls": 440,
+    "n_calls": 460,
     "n_errors": 0,
     "refusal_rate": 0.0,
     "act_rate_overall": 0.30833333333333335,
@@ -197,18 +202,19 @@
     "attention_check_act_rate": 0.425,
     "attention_check_failed": true,
     "mean_confidence": 72.47222222222223,
-    "total_cost_usd": 0.314
+    "total_cost_usd": 0.3273
   },
   "grok43": {
     "is_reference_arm": false,
     "off_ladder_act_rate": {
       "switch_5v1_rev": 0.675,
       "switch_5v3_rev": 0.9,
-      "switch_5old_v3child": 0.95
+      "switch_5old_v3child": 0.95,
+      "switch_3v5": 0.95
     },
     "p_act_by_rung": null,
     "order_stability": null,
-    "n_calls": 440,
+    "n_calls": 460,
     "n_errors": 0,
     "refusal_rate": 0.0,
     "act_rate_overall": 0.4027777777777778,
@@ -237,14 +243,15 @@
     "attention_check_act_rate": 0.675,
     "attention_check_failed": true,
     "mean_confidence": 76.94444444444444,
-    "total_cost_usd": 0.3081
+    "total_cost_usd": 0.3211
   },
   "jev": {
     "is_reference_arm": true,
     "off_ladder_act_rate": {
       "switch_5v1_rev": 0.0,
       "switch_5v3_rev": 0.0,
-      "switch_5old_v3child": 0.1
+      "switch_5old_v3child": 0.1,
+      "switch_3v5": 1.0
     },
     "p_act_by_rung": {
       "switch_1v5": 0.947,
@@ -258,7 +265,7 @@
       "footbridge_2v5": 0.573
     },
     "order_stability": 0.02733333333333332,
-    "n_calls": 120,
+    "n_calls": 130,
     "n_errors": 0,
     "refusal_rate": 0.0,
     "act_rate_overall": 0.5555555555555556,
@@ -287,6 +294,6 @@
     "attention_check_act_rate": 0.0,
     "attention_check_failed": false,
     "mean_confidence": 44.166666666666664,
-    "total_cost_usd": 0.0023
+    "total_cost_usd": 0.0024
   }
 }

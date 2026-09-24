@@ -1,10 +1,10 @@
 from trolley.scenarios import RUNGS, Rung
 
 
-def test_twelve_rungs_declared_in_index_order():
-    assert len(RUNGS) == 12
-    assert [r.index for r in RUNGS] == list(range(1, 13))
-    assert len({r.key for r in RUNGS}) == 12
+def test_thirteen_rungs_with_unique_keys_and_indices():
+    assert len(RUNGS) == 13
+    assert sorted(r.index for r in RUNGS) == list(range(1, 14))
+    assert len({r.key for r in RUNGS}) == 13
 
 
 def test_the_ladder_itself_is_the_nine_escalating_rungs():
@@ -13,7 +13,7 @@ def test_the_ladder_itself_is_the_nine_escalating_rungs():
     # The reading tests and the age pair sit off the escalation axis and must
     # never be pooled into the per-rung figures.
     assert {r.key for r in RUNGS if not r.in_ladder} == {
-        "switch_5v1_rev", "switch_5v3_rev", "switch_5old_v3child",
+        "switch_5v1_rev", "switch_5v3_rev", "switch_3v5", "switch_5old_v3child",
     }
 
 
@@ -48,3 +48,17 @@ def test_bodies_are_angle_neutral():
         assert " you " not in lowered, f"{r.key} body addresses the reader"
         assert " your " not in lowered, f"{r.key} body addresses the reader"
         assert "the operator" in r.body.lower(), f"{r.key} lacks the operator"
+
+
+def test_the_mirror_pair_reverses_only_the_direction():
+    worse = next(r for r in RUNGS if r.key == "switch_5v3_rev")
+    better = next(r for r in RUNGS if r.key == "switch_3v5")
+    # Same margin, opposite sign: one sends the trolley into five, one into three.
+    assert "toward three track workers" in worse.body
+    assert "where five track workers are standing" in worse.body
+    assert "toward five track workers" in better.body
+    assert "where three track workers are standing" in better.body
+    assert worse.act_label == better.act_label
+    # Pulling is defensible in the mirror, so it is not a reading test.
+    assert worse.is_attention_check is True
+    assert better.is_attention_check is False

@@ -38,10 +38,12 @@ LADDER = [
      "Two men must go over the edge. Three lives are saved on balance, but you kill two."),
 ]
 NEW = [
-    ("switch_5v3_rev", "Lever: 5 die instead of 3", "reading test, milder",
-     "The trolley heads at three workers. Pulling sends it into five. Pulling is worse."),
-    ("switch_5old_v3child", "Lever: 5 elderly die, 3 children live", "age against numbers",
-     "Exactly the same as above, except the three are children and the five are elderly."),
+    ("switch_5v3_rev", "5 die, 3 live", "pulling is worse",
+     "The trolley heads at three workers. Pulling sends it into five instead."),
+    ("switch_3v5", "3 die, 5 live", "pulling is better",
+     "The mirror image. The trolley heads at five workers. Pulling sends it into three."),
+    ("switch_5old_v3child", "5 elderly die, 3 children live", "age against numbers",
+     "The first version again, except the three are children and the five are elderly people."),
 ]
 CHECK = ("switch_5v1_rev", "Reading test", "5 die instead of 1",
          "We swapped the numbers around. Pulling the lever now kills five and saves one.")
