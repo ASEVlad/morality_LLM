@@ -3,9 +3,10 @@
 A small experiment: seven AI models, thirteen versions of the trolley problem,
 five ways of asking each one. 2,890 questions, about five dollars.
 
-**Read the report:** [docs/report.html](docs/report.html) is a single
-self-contained page with the findings, the charts and every number. Open it in
-a browser, or clone the repo and double-click it.
+**Read the report:** <https://asevlad.github.io/morality_LLM/report.html>
+
+It is a single self-contained page with the findings, the charts and every
+number. The same file is [docs/report.html](docs/report.html) in this repo.
 
 ## What we found
 
@@ -100,3 +101,7 @@ setting, so settings are not identical across providers. Every model has seen
 the trolley problem thousands of times in training. Nobody refused, but the
 fixed answer format forced a choice. The report's limits section says all of
 this at proper length.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
