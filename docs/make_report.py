@@ -4,8 +4,7 @@ import json
 import pathlib
 from collections import defaultdict
 
-ROOT = pathlib.Path("/home/asevlad/program_files/github_asevlad/Morality_Questions/.worktrees/trolley-eval")
-SCRATCH = pathlib.Path(__file__).parent / "trolley-report.html"
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 m = json.loads((ROOT / "results/metrics.json").read_text())
 rows = [json.loads(l) for l in (ROOT / "results/calls.jsonl").read_text().splitlines() if l.strip()]
@@ -41,9 +40,9 @@ NEW = [
     ("switch_5v3_rev", "5 die, 3 live", "pulling is worse",
      "The trolley heads at three workers. Pulling sends it into five instead."),
     ("switch_3v5", "3 die, 5 live", "pulling is better",
-     "The mirror image. The trolley heads at five workers. Pulling sends it into three."),
+     "The mirror image of version 11. The trolley heads at five workers. Pulling sends it into three."),
     ("switch_5old_v3child", "5 elderly die, 3 children live", "age against numbers",
-     "The first version again, except the three are children and the five are elderly people."),
+     "Version 11 again, except the three are children and the five are elderly people."),
 ]
 CHECK = ("switch_5v1_rev", "Reading test", "5 die instead of 1",
          "We swapped the numbers around. Pulling the lever now kills five and saves one.")

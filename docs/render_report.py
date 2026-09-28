@@ -3,8 +3,7 @@
 import json
 import pathlib
 
-ROOT = pathlib.Path("/home/asevlad/program_files/github_asevlad/Morality_Questions/.worktrees/trolley-eval")
-HERE = pathlib.Path("/tmp/claude-1000/-home-asevlad-program-files-github-asevlad-Morality-Questions/b4d9e103-e58f-4d85-a52e-b28df87e06ae/scratchpad")
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 D = json.loads((ROOT / "results/report_data.json").read_text())
 
 STYLE = """<title>Where Models Stop Counting</title>
@@ -159,7 +158,7 @@ def steps_list():
         ({"label": "Reading test: 5 die instead of 1",
           "desc": "We swapped the numbers around. Pulling the lever now kills five people and "
                   "saves one. Anyone reading carefully does nothing here."}, True),
-    ] + [(r, False) for r in D["rungs"][2:]]
+    ] + [(r, False) for r in D["rungs"][2:]] + [(r, False) for r in D["newRungs"]]
     for r, is_check in order:
         cls = ' class="check"' if is_check else ""
         items.append(f'<li{cls}><b>{esc(r["label"])}</b><span>{esc(r["desc"])}</span></li>')
@@ -176,38 +175,42 @@ def results_table():
     for k in order:
         h.append(f'<th>{esc(D["labels"][k])}</th>')
     h.append('<th>Four models<br>together</th><th>Jev</th></tr></thead><tbody>')
+
+    def mean(vals):
+        xs = [vals[k] for k in D["trusted"] if vals[k] is not None]
+        return sum(xs) / len(xs) if xs else None
+
+    # (label, note, per-model rates, combined, jev, is_check) in version order 1..13
+    rows = []
     for i, r in enumerate(D["rungs"]):
-        h.append(f'<tr><td>{i + 1 if i < 2 else i + 2}. {esc(r["label"])}'
-                 f'<br><span style="color:var(--ink-3);font-size:.9em">{esc(r["note"])}</span></td>')
-        for k in order:
-            cls = ' class="hi"' if k in D["trusted"] else ""
-            h.append(f'<td{cls}>{D["ladder"][k][i]:.2f}</td>')
-        h.append(f'<td class="hi">{D["pooled"][i]:.2f}</td><td>{D["jev"][i]:.3f}</td></tr>')
-    # diagnostics below the ladder
-    extra = [("3. Reading test", "pulling kills 5, saves 1",
-              {k: D["attention"][k] for k in order}, 0.0)]
-    for nr in D["newRungs"]:
-        extra.append((f'{nr["label"]}', nr["note"],
-                      {k: D["newRates"][k][nr["key"]] for k in order},
-                      D["newRates"]["jev"][nr["key"]]))
-    h.append('<tr><td colspan="9" style="border-bottom:1px solid var(--rule);'
-             'padding-top:18px;color:var(--ink-3);font-size:.7rem;letter-spacing:.09em;'
-             'text-transform:uppercase">Not part of the ladder</td></tr>')
-    for lab, note, vals, jevv in extra:
+        rows.append((f'{i + 1 if i < 2 else i + 2}. {r["label"]}', r["note"],
+                     {k: D["ladder"][k][i] for k in order}, D["pooled"][i], D["jev"][i], False))
+    check = {k: D["attention"][k] for k in order}
+    rows.insert(2, ("3. Reading test", "pulling kills 5, saves 1", check, mean(check), 0.0, True))
+    for n, nr in enumerate(D["newRungs"], start=len(D["rungs"]) + 2):
+        vals = {k: D["newRates"][k][nr["key"]] for k in order}
+        rows.append((f'{n}. {nr["label"]}', nr["note"], vals, mean(vals),
+                     D["newRates"]["jev"][nr["key"]], False))
+
+    for lab, note, vals, pooled, jevv, is_check in rows:
         h.append(f'<tr><td>{esc(lab)}<br><span style="color:var(--ink-3);font-size:.9em">'
                  f'{esc(note)}</span></td>')
         for k in order:
             v = vals[k]
-            bad = v is not None and v > 0.10 and "Reading" in lab
-            st = ' style="color:var(--warn);font-weight:500"' if bad else ""
-            h.append(f'<td{st}>{"—" if v is None else f"{v:.2f}"}'
+            bad = is_check and v is not None and v > 0.10
+            if bad:
+                attr = ' style="color:var(--warn);font-weight:500"'
+            else:
+                attr = ' class="hi"' if k in D["trusted"] else ""
+            h.append(f'<td{attr}>{"—" if v is None else f"{v:.2f}"}'
                      f'{" &#10007;" if bad else ""}</td>')
-        h.append(f'<td>—</td><td>{"—" if jevv is None else f"{jevv:.2f}"}</td></tr>')
+        h.append(f'<td class="hi">{"—" if pooled is None else f"{pooled:.2f}"}</td>'
+                 f'<td>{"—" if jevv is None else f"{jevv:.3f}"}</td></tr>')
     h.append("</tbody></table></div>")
     h.append('<p class="col" style="font-size:.83rem;color:var(--ink-3);margin-top:16px">'
              'The two Grok columns failed the reading test, so they are left out of the combined '
-             'score. Jev answered twice per question; the others answered eight times on the ladder '
-             'and four times on the two extra versions.</p></section>')
+             'score. The others answered each of versions 1 to 10 eight times and versions 11 to 13 '
+             'four times; Jev answered twice per question.</p></section>')
     return "\n".join(h)
 
 
@@ -245,7 +248,7 @@ def new_versions_section():
                  "Claude Sonnet 5 pulled less often, which fits its habit of acting less than the "
                  "others everywhere in this study, not a failure to read.</p>")
     read += ("<div class=\"note\"><p><b>This also settles something from earlier.</b> When these "
-             "models scored 0.00 on the first version, you could have argued they simply do not "
+             "models scored 0.00 on version 11, you could have argued they simply do not "
              "like pulling levers &mdash; a bias against acting rather than any reading of the "
              "numbers. The mirror rules that out. Same margin, same lever, same wording; only the "
              "direction changes, and the answer flips completely.</p></div>")
@@ -297,27 +300,27 @@ def new_versions_section():
 
     return f"""
 <section class="col">
-  <p class="eyebrow">Three more versions</p>
+  <p class="eyebrow">Finding 6</p>
   <h2>Reading the numbers, and who the numbers are</h2>
-  <p class="lede">The ladder is about <em>how</em> you act. These three are about <em>what you are
-  acting on</em>. All three use the plain lever &mdash; no pushing, no tricks. Only the numbers and
-  the people change.</p>
+  <p class="lede">Versions 1 to 10 are about <em>how</em> you act. Versions 11 to 13 are about
+  <em>what you are acting on</em>. All three use the plain lever from version 1 &mdash; no pushing,
+  no tricks. Only the numbers and the people change.</p>
   <table class="who">
     <thead><tr><th>Model</th>
-    <th class="n">{esc(D["newRungs"][0]["label"])}<br>
+    <th class="n">11. {esc(D["newRungs"][0]["label"])}<br>
       <span style="font-weight:400;text-transform:none;letter-spacing:0">pulling is worse</span></th>
-    <th class="n">{esc(D["newRungs"][1]["label"])}<br>
+    <th class="n">12. {esc(D["newRungs"][1]["label"])}<br>
       <span style="font-weight:400;text-transform:none;letter-spacing:0">pulling is better</span></th>
-    <th class="n">{esc(D["newRungs"][2]["label"])}<br>
+    <th class="n">13. {esc(D["newRungs"][2]["label"])}<br>
       <span style="font-weight:400;text-transform:none;letter-spacing:0">age added</span></th></tr></thead>
     <tbody>{body}</tbody>
   </table>
   <p style="font-size:.85rem;color:var(--ink-3);margin-top:10px">Every model answered all three,
-  four times per question and twice for Jev. That is rougher than the eight answers behind the main
-  ladder, so read these as directions.</p>
+  four times per question and twice for Jev. That is rougher than the eight answers behind versions
+  1 to 10, so read these as directions.</p>
 
   <h3>Is the model reading the numbers?</h3>
-  <p>The first two versions are mirror images. Same five-against-three margin, opposite direction:</p>
+  <p>Versions 11 and 12 are mirror images. Same five-against-three margin, opposite direction:</p>
   <ul class="plain">
     <li><strong>5 die, 3 live</strong> &mdash; the trolley heads at three, and pulling sends it into
     five. Pulling makes things worse.</li>
@@ -329,8 +332,8 @@ def new_versions_section():
   {read}
 
   <h3>Does it matter who is on the track?</h3>
-  <p>The third version is the first one again, word for word, with one change: the three are
-  children and the five are elderly people. The numbers are untouched.</p>
+  <p>Version 13 is version 11 again, word for word, with one change: the three are children and
+  the five are elderly people. The numbers are untouched.</p>
   {agetxt}
 </section>"""
 
@@ -383,14 +386,17 @@ BODY = """
 </section>
 
 <section class="col">
-  <h2>The first ten versions</h2>
-  <p class="lede">There are thirteen versions in all. The ten below form a ladder from easy to
-  hard: at each step, either the action gets more direct or the reason for doing it gets weaker.
-  The other three come later, because they ask a different question.</p>
+  <h2>The thirteen versions</h2>
+  <p class="lede">Versions 1 to 10 form a ladder from easy to hard: at each step, either the action
+  gets more direct or the reason for doing it gets weaker. Versions 11 to 13 keep the plain lever
+  from version 1 and change what you are acting on instead &mdash; first the numbers, then the
+  people.</p>
   __STEPS__
   <p style="margin-top:26px">Version 3 is not a moral question at all. We reversed it, so pulling the
   lever now kills five and saves one. It is there to check that the model is reading the text in
-  front of it. This turned out to be the most useful thing in the whole design.</p>
+  front of it. This turned out to be the most useful thing in the whole design. Versions 11 and 12
+  are a second reading check of the same kind: mirror images of each other, five against three in
+  both directions.</p>
 </section>
 
 <section class="col">
@@ -447,8 +453,9 @@ BODY = """
   split.</p>
   <p>Acting means pulling the lever or pushing the man &mdash; whatever the active choice is in that
   version. Not acting always means standing still and letting events continue.</p>
-  <p>Each model answered each ladder question eight times, so 0.25 means it acted twice out of eight.
-  We also swapped the order of the two options half the time. Without that, we might just be
+  <p>Each model answered each of versions 1 to 10 eight times, so 0.25 means it acted twice out of
+  eight. Versions 11 to 13 were answered four times each, so those numbers are rougher. We also
+  swapped the order of the two options half the time. Without that, we might just be
   measuring which models like to pick the first thing on the list.</p>
 </section>
 
@@ -525,8 +532,8 @@ BODY = """
     <p class="hint">Hover or tap any point to see what that version says</p>
     <figcaption><strong>The ladder, easy on the left to hard on the right.</strong> Up means the
     model acts. Down means it does nothing. Each point is eight answers. Jev is dashed because it
-    reports a probability instead of counting choices. The reading test is not shown, because it is
-    not a moral question.</figcaption>
+    reports a probability instead of counting choices. Version 3 is not shown, because it is not a
+    moral question. Versions 11 to 13 are covered in Finding 6.</figcaption>
   </figure>
 </section>
 <section class="col">
@@ -564,7 +571,7 @@ BODY = """
 <section class="col">
   <p class="eyebrow">Finding 4</p>
   <h2>After the drop, counting stops</h2>
-  <p class="lede">The last five versions all use the same action &mdash; pushing someone with your
+  <p class="lede">Versions 6 to 10 all use the same action &mdash; pushing someone with your
   hands. Only the circumstances change. So we can ask a clean question: once a model decides pushing
   is wrong, does it still notice how many lives are at stake?</p>
   <p>These are very different deals:</p>
@@ -650,11 +657,12 @@ LIMITS = """
   <p class="eyebrow">Limits</p>
   <h2>What this can and cannot tell you</h2>
   <p class="lede">Please read this before quoting any number here.</p>
-  <p>Each model answered each ladder question eight times. That is not many. If a model acts 4 times
-  out of 8, the true rate could be anywhere from about 19% to about 81%. So <strong>one square in the
+  <p>Each model answered each of versions 1 to 10 eight times, and versions 11 to 13 only four
+  times. That is not many. If a model acts 4 times out of 8, the true rate could be anywhere from about 19% to about 81%. So <strong>one square in the
   table is not a reliable number</strong>. It shows a rough direction, nothing more.</p>
-  <p>The combined scores are safer, because each uses 32 answers. The reading test uses 40 per model,
-  and it is the strongest result in this report.</p>
+  <p>The combined scores are safer, because each uses 32 answers on versions 1 to 10 and 16 on
+  versions 11 to 13. The reading test uses 40 per model, and it is the strongest result in this
+  report.</p>
   <ul class="plain">
     <li><strong>Nobody refused, but we forced that.</strong> We required a fixed answer format, so
     every model had to choose. A model that wanted to dodge had to pick &ldquo;do nothing&rdquo;. We
@@ -877,7 +885,8 @@ frag = (frag.replace("__DATA__", json.dumps(D))
             .replace("__CALLS__", f'{D["totals"]["calls"]:,}')
             .replace("__COST__", f'{D["totals"]["cost"]:.2f}')
             .replace("__ORD__", f'{D["totals"]["orderStability"]:.3f}'))
-SCRATCH = HERE / "trolley-report.html"
+# Bare fragment (no document skeleton), for publishing as an artifact. results/ is gitignored.
+SCRATCH = ROOT / "results/report_fragment.html"
 SCRATCH.write_text(frag)
 (ROOT / "docs/report.html").write_text(
     '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
